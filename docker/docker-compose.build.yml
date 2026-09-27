@@ -12,12 +12,13 @@ services:
     extends:
       file: docker-compose.yml
       service: postgres
+    volumes:
+      - type: bind
+        source: ${HOME}/data/ghostfolio/postgres
+        target: /var/lib/postgresql/data
 
   redis:
     container_name: gf-redis-build
     extends:
       file: docker-compose.yml
       service: redis
-
-volumes:
-  postgres:
