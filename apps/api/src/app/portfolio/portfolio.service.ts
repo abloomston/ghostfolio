@@ -1146,7 +1146,8 @@ export class PortfolioService {
         name: assetProfile.name,
         sectors: assetProfile.sectors,
         symbol: assetProfile.symbol,
-        userId: assetProfile.userId
+        userId: assetProfile.userId,
+        yahooFinanceConnection: assetProfile.yahooFinanceConnection
       },
       averagePrice: averagePrice.toNumber(),
       dataProviderInfo: this.dataProviderService

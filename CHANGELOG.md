@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added the dividend performance to the analysis page (experimental)
+- Added the option to derive market prices of manual tickers from a Yahoo Finance ticker and beta
 
 ### Changed
 

@@ -9,21 +9,34 @@ import { AssetProfileSplit, DataSource } from '@prisma/client';
 
 import { AssetProfilesService } from './asset-profiles.service';
 
+jest.mock(
+  '@ghostfolio/api/services/data-provider/manual/manual.service',
+  () => ({
+    ManualService: class {}
+  })
+);
+
 describe('AssetProfilesService', () => {
   let assetProfilesService: AssetProfilesService;
   let deleteById: jest.Mock;
   let emit: jest.Mock;
   let finished: jest.Mock;
+  let deleteYahooFinanceConnection: jest.Mock;
   let gatherSymbol: jest.Mock;
+  let getSymbolProfiles: jest.Mock;
   let getUserIdsBySymbolProfileId: jest.Mock;
+  let updateYahooFinanceConnection: jest.Mock;
   let upsert: jest.Mock;
 
   beforeEach(() => {
     deleteById = jest.fn();
+    deleteYahooFinanceConnection = jest.fn();
     emit = jest.fn();
     finished = jest.fn().mockResolvedValue(undefined);
     gatherSymbol = jest.fn().mockResolvedValue([{ finished }]);
+    getSymbolProfiles = jest.fn();
     getUserIdsBySymbolProfileId = jest.fn().mockResolvedValue([]);
+    updateYahooFinanceConnection = jest.fn();
     upsert = jest.fn();
 
     assetProfilesService = new AssetProfilesService(
@@ -35,12 +48,69 @@ describe('AssetProfilesService', () => {
       null,
       { gatherSymbol } as unknown as DataGatheringService,
       null,
+      {
+        deleteYahooFinanceConnection,
+        updateYahooFinanceConnection
+      } as any,
       { emit } as unknown as EventEmitter2,
       null,
       null,
       null,
-      null
+      { getSymbolProfiles } as any
     );
+  });
+
+  describe('updateManualTickerYahooFinanceConnection', () => {
+    const assetProfile = {
+      dataSource: DataSource.MANUAL,
+      id: 'profile-id',
+      symbol: 'manual-symbol'
+    };
+
+    it('updates the connection and refreshes the synthetic market data', async () => {
+      getSymbolProfiles
+        .mockResolvedValueOnce([assetProfile])
+        .mockResolvedValueOnce([assetProfile]);
+
+      await assetProfilesService.updateManualTickerYahooFinanceConnection(
+        { dataSource: DataSource.MANUAL, symbol: 'manual-symbol' },
+        { yahooFinanceConnection: { beta: 1.5, symbol: 'SPY' } }
+      );
+
+      expect(updateYahooFinanceConnection).toHaveBeenCalledWith({
+        beta: 1.5,
+        symbol: 'manual-symbol',
+        symbolProfileId: 'profile-id',
+        yahooSymbol: 'SPY'
+      });
+      expect(gatherSymbol).toHaveBeenCalledWith({
+        dataSource: DataSource.MANUAL,
+        force: true,
+        symbol: 'manual-symbol'
+      });
+    });
+
+    it('removes the connection and invalidates affected portfolios', async () => {
+      getSymbolProfiles
+        .mockResolvedValueOnce([assetProfile])
+        .mockResolvedValueOnce([assetProfile]);
+      getUserIdsBySymbolProfileId.mockResolvedValue(['user-id']);
+
+      await assetProfilesService.updateManualTickerYahooFinanceConnection(
+        { dataSource: DataSource.MANUAL, symbol: 'manual-symbol' },
+        { yahooFinanceConnection: null }
+      );
+
+      expect(deleteYahooFinanceConnection).toHaveBeenCalledWith({
+        symbol: 'manual-symbol',
+        symbolProfileId: 'profile-id'
+      });
+      expect(emit).toHaveBeenCalledWith(
+        PortfolioChangedEvent.getName(),
+        expect.objectContaining({})
+      );
+      expect(gatherSymbol).not.toHaveBeenCalled();
+    });
   });
 
   describe('createSplit', () => {

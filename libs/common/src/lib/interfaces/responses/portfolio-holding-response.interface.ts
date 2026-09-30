@@ -21,6 +21,7 @@ export interface PortfolioHoldingResponse {
     | 'sectors'
     | 'symbol'
     | 'userId'
+    | 'yahooFinanceConnection'
   >;
   averagePrice: number;
   dataProviderInfo: DataProviderInfo;

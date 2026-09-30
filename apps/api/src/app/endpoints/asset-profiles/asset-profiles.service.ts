@@ -3,12 +3,16 @@ import { PortfolioChangedEvent } from '@ghostfolio/api/events/portfolio-changed.
 import { AssetProfileSplitService } from '@ghostfolio/api/services/asset-profile-split/asset-profile-split.service';
 import { BenchmarkService } from '@ghostfolio/api/services/benchmark/benchmark.service';
 import { DataProviderService } from '@ghostfolio/api/services/data-provider/data-provider.service';
+import { ManualService } from '@ghostfolio/api/services/data-provider/manual/manual.service';
 import { ExchangeRateDataService } from '@ghostfolio/api/services/exchange-rate-data/exchange-rate-data.service';
 import { MarketDataService } from '@ghostfolio/api/services/market-data/market-data.service';
 import { PrismaService } from '@ghostfolio/api/services/prisma/prisma.service';
 import { DataGatheringService } from '@ghostfolio/api/services/queues/data-gathering/data-gathering.service';
 import { SymbolProfileService } from '@ghostfolio/api/services/symbol-profile/symbol-profile.service';
-import { UpdateAssetProfileDataDto } from '@ghostfolio/common/dtos';
+import {
+  UpdateAssetProfileDataDto,
+  UpdateManualTickerYahooFinanceConnectionDto
+} from '@ghostfolio/common/dtos';
 import {
   applyAssetProfileOverrides,
   getAssetProfileIdentifier,
@@ -41,6 +45,7 @@ export class AssetProfilesService {
     private readonly benchmarkService: BenchmarkService,
     private readonly dataGatheringService: DataGatheringService,
     private readonly dataProviderService: DataProviderService,
+    private readonly manualService: ManualService,
     private readonly eventEmitter: EventEmitter2,
     private readonly exchangeRateDataService: ExchangeRateDataService,
     private readonly marketDataService: MarketDataService,
@@ -461,6 +466,48 @@ export class AssetProfilesService {
       assetProfiles,
       count
     };
+  }
+
+  public async updateManualTickerYahooFinanceConnection(
+    { dataSource, symbol }: AssetProfileIdentifier,
+    { yahooFinanceConnection }: UpdateManualTickerYahooFinanceConnectionDto
+  ): Promise<EnhancedAssetProfile> {
+    const [assetProfile] = await this.symbolProfileService.getSymbolProfiles([
+      { dataSource, symbol }
+    ]);
+
+    if (!assetProfile || dataSource !== DataSource.MANUAL) {
+      throw new NotFoundException();
+    }
+
+    if (yahooFinanceConnection) {
+      await this.manualService.updateYahooFinanceConnection({
+        beta: yahooFinanceConnection.beta,
+        symbol,
+        symbolProfileId: assetProfile.id,
+        yahooSymbol: yahooFinanceConnection.symbol
+      });
+
+      await this.gatherSymbolAndEmitPortfolioChangedEvents({
+        dataSource,
+        symbol,
+        symbolProfileId: assetProfile.id,
+        withImmediateInvalidation: true
+      });
+    } else {
+      await this.manualService.deleteYahooFinanceConnection({
+        symbol,
+        symbolProfileId: assetProfile.id
+      });
+      await this.emitPortfolioChangedEvents(assetProfile.id);
+    }
+
+    const [updatedAssetProfile] =
+      await this.symbolProfileService.getSymbolProfiles([
+        { dataSource, symbol }
+      ]);
+
+    return updatedAssetProfile;
   }
 
   public async updateAssetProfileData(

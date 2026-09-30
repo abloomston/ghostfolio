@@ -484,6 +484,22 @@ export class DataGatheringService {
       });
   }
 
+  private isMarketDataGatheringSupported({
+    dataSource,
+    manualTickerYahooFinanceConnection,
+    scraperConfiguration
+  }: {
+    dataSource: string;
+    manualTickerYahooFinanceConnection?: unknown;
+    scraperConfiguration?: unknown;
+  }) {
+    return (
+      dataSource !== 'MANUAL' ||
+      !isEmpty(scraperConfiguration) ||
+      !!manualTickerYahooFinanceConnection
+    );
+  }
+
   private getEarliestDate(aStartDate: Date) {
     return min([aStartDate, subYears(new Date(), 10)]);
   }
@@ -495,6 +511,7 @@ export class DataGatheringService {
       orderBy: [{ symbol: 'asc' }, { dataSource: 'asc' }],
       select: {
         dataSource: true,
+        manualTickerYahooFinanceConnection: true,
         scraperConfiguration: true,
         symbol: true
       },
@@ -505,14 +522,19 @@ export class DataGatheringService {
     });
 
     return symbolProfiles
-      .filter(({ dataSource, scraperConfiguration }) => {
-        const manualDataSourceWithScraperConfiguration =
-          dataSource === 'MANUAL' && !isEmpty(scraperConfiguration);
-
-        return (
-          dataSource !== 'MANUAL' || manualDataSourceWithScraperConfiguration
-        );
-      })
+      .filter(
+        ({
+          dataSource,
+          manualTickerYahooFinanceConnection,
+          scraperConfiguration
+        }) => {
+          return this.isMarketDataGatheringSupported({
+            dataSource,
+            manualTickerYahooFinanceConnection,
+            scraperConfiguration
+          });
+        }
+      )
       .map(({ dataSource, symbol }) => {
         return { dataSource, symbol };
       });
@@ -533,17 +555,25 @@ export class DataGatheringService {
       );
 
     return symbolProfiles
-      .filter(({ dataSource, scraperConfiguration, symbol }) => {
-        const manualDataSourceWithScraperConfiguration =
-          dataSource === 'MANUAL' && !isEmpty(scraperConfiguration);
-
-        return (
-          !assetProfileIdentifiersWithRecentMarketData.some((item) => {
-            return item.dataSource === dataSource && item.symbol === symbol;
-          }) &&
-          (dataSource !== 'MANUAL' || manualDataSourceWithScraperConfiguration)
-        );
-      })
+      .filter(
+        ({
+          dataSource,
+          manualTickerYahooFinanceConnection,
+          scraperConfiguration,
+          symbol
+        }) => {
+          return (
+            !assetProfileIdentifiersWithRecentMarketData.some((item) => {
+              return item.dataSource === dataSource && item.symbol === symbol;
+            }) &&
+            this.isMarketDataGatheringSupported({
+              dataSource,
+              manualTickerYahooFinanceConnection,
+              scraperConfiguration
+            })
+          );
+        }
+      )
       .map((symbolProfile) => {
         return {
           ...symbolProfile,
@@ -589,6 +619,7 @@ export class DataGatheringService {
           },
           dataSource: true,
           id: true,
+          manualTickerYahooFinanceConnection: true,
           scraperConfiguration: true,
           symbol: true
         },
@@ -597,14 +628,19 @@ export class DataGatheringService {
         }
       })
     )
-      .filter(({ dataSource, scraperConfiguration }) => {
-        const manualDataSourceWithScraperConfiguration =
-          dataSource === 'MANUAL' && !isEmpty(scraperConfiguration);
-
-        return (
-          dataSource !== 'MANUAL' || manualDataSourceWithScraperConfiguration
-        );
-      })
+      .filter(
+        ({
+          dataSource,
+          manualTickerYahooFinanceConnection,
+          scraperConfiguration
+        }) => {
+          return this.isMarketDataGatheringSupported({
+            dataSource,
+            manualTickerYahooFinanceConnection,
+            scraperConfiguration
+          });
+        }
+      )
       .map((symbolProfile) => {
         let date = symbolProfile.activities?.[0]?.date ?? startDate;
 

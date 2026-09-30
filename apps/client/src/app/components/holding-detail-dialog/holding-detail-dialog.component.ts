@@ -20,7 +20,8 @@ import {
   Filter,
   LineChartItem,
   NullableLineChartItem,
-  User
+  User,
+  YahooFinanceConnection
 } from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
 import { internalRoutes } from '@ghostfolio/common/routes/routes';
@@ -53,7 +54,8 @@ import {
   FormBuilder,
   FormControl,
   FormGroup,
-  ReactiveFormsModule
+  ReactiveFormsModule,
+  Validators
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
@@ -63,7 +65,9 @@ import {
   MatDialogRef
 } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { PageEvent } from '@angular/material/paginator';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { SortDirection } from '@angular/material/sort';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -111,6 +115,8 @@ import {
     MatChipsModule,
     MatDialogModule,
     MatFormFieldModule,
+    MatInputModule,
+    MatSnackBarModule,
     MatTabsModule,
     NgxSkeletonLoaderModule,
     ReactiveFormsModule,
@@ -137,11 +143,13 @@ export class GfHoldingDetailDialogComponent implements OnInit {
     | 'sectors'
     | 'symbol'
     | 'userId'
+    | 'yahooFinanceConnection'
   >;
   protected assetSubClass: string;
   protected averagePrice: number;
   protected averagePricePrecision = 2;
   protected benchmarkDataItems: NullableLineChartItem[];
+  protected canManageYahooFinanceConnection: boolean;
   protected readonly benchmarkLabel = $localize`Average Unit Price`;
   protected countries: {
     [code: string]: { name: string; value: number };
@@ -196,6 +204,11 @@ export class GfHoldingDetailDialogComponent implements OnInit {
   protected user: User;
   protected value: number;
 
+  protected readonly yahooFinanceConnectionForm = inject(FormBuilder).group({
+    beta: new FormControl<number | null>(1, Validators.required),
+    symbol: new FormControl<string | null>('', Validators.required)
+  });
+
   protected readonly data = inject<HoldingDetailDialogParams>(MAT_DIALOG_DATA);
   protected readonly dialogRef =
     inject<
@@ -212,6 +225,7 @@ export class GfHoldingDetailDialogComponent implements OnInit {
     ImpersonationStorageService
   );
   private readonly router = inject(Router);
+  private readonly snackBar = inject(MatSnackBar);
   private readonly userService = inject(UserService);
 
   public constructor() {
@@ -404,6 +418,15 @@ export class GfHoldingDetailDialogComponent implements OnInit {
           this.isOwnAssetProfile =
             assetProfile?.dataSource === 'MANUAL' &&
             assetProfile?.userId === this.user?.id;
+          this.updateYahooFinanceConnectionPermissions();
+          this.yahooFinanceConnectionForm.setValue(
+            {
+              beta: assetProfile?.yahooFinanceConnection?.beta ?? 1,
+              symbol: assetProfile?.yahooFinanceConnection?.symbol ?? ''
+            },
+            { emitEvent: false }
+          );
+          this.yahooFinanceConnectionForm.markAsPristine();
 
           this.marketPrice = marketPrice;
           this.marketPriceMax = marketPriceMax;
@@ -605,6 +628,8 @@ export class GfHoldingDetailDialogComponent implements OnInit {
             !this.impersonationStorageService.getId() &&
             hasPermission(this.user?.permissions, permissions.createOwnTag);
 
+          this.updateYahooFinanceConnectionPermissions();
+
           this.tagsAvailable =
             this.user?.tags
               ?.filter(({ id }) => {
@@ -683,10 +708,28 @@ export class GfHoldingDetailDialogComponent implements OnInit {
       });
   }
 
+  protected onDisconnectYahooFinanceConnection() {
+    this.updateYahooFinanceConnection(null);
+  }
+
   protected onMarketDataChanged(withRefresh = false) {
     if (withRefresh) {
       this.fetchMarketData();
     }
+  }
+
+  protected onSaveYahooFinanceConnection() {
+    if (this.yahooFinanceConnectionForm.invalid) {
+      return;
+    }
+
+    const { beta, symbol } = this.yahooFinanceConnectionForm.getRawValue();
+
+    if (beta === null || !symbol) {
+      return;
+    }
+
+    this.updateYahooFinanceConnection({ beta, symbol });
   }
 
   private fetchActivities(filters: Filter[] = this.getActivityFilters()) {
@@ -727,6 +770,73 @@ export class GfHoldingDetailDialogComponent implements OnInit {
 
         this.changeDetectorRef.markForCheck();
       });
+  }
+
+  private updateYahooFinanceConnection(
+    yahooFinanceConnection: YahooFinanceConnection | null
+  ) {
+    this.dataService
+      .patchYahooFinanceConnection(
+        {
+          dataSource: this.data.dataSource,
+          symbol: this.data.symbol
+        },
+        { yahooFinanceConnection }
+      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (assetProfile) => {
+          this.assetProfile = {
+            ...this.assetProfile,
+            yahooFinanceConnection: assetProfile.yahooFinanceConnection
+          };
+          this.yahooFinanceConnectionForm.setValue(
+            {
+              beta: assetProfile.yahooFinanceConnection?.beta ?? 1,
+              symbol: assetProfile.yahooFinanceConnection?.symbol ?? ''
+            },
+            { emitEvent: false }
+          );
+          this.yahooFinanceConnectionForm.markAsPristine();
+          this.snackBar.open(
+            yahooFinanceConnection
+              ? $localize`Yahoo Finance connection has been saved`
+              : $localize`Yahoo Finance connection has been removed`,
+            undefined,
+            { duration: 3000 }
+          );
+          this.userService.get(true).subscribe();
+          this.changeDetectorRef.markForCheck();
+        },
+        error: () => {
+          this.snackBar.open(
+            $localize`Could not save the Yahoo Finance connection`,
+            undefined,
+            { duration: 3000 }
+          );
+          this.changeDetectorRef.markForCheck();
+        }
+      });
+  }
+
+  private updateYahooFinanceConnectionPermissions() {
+    const canUpdateAllAssetProfiles =
+      hasPermission(this.user?.permissions, permissions.createMarketData) &&
+      hasPermission(this.user?.permissions, permissions.updateMarketData);
+    const canUpdateOwnAssetProfile =
+      this.assetProfile?.userId === this.user?.id &&
+      hasPermission(
+        this.user?.permissions,
+        permissions.createMarketDataOfOwnAssetProfile
+      ) &&
+      hasPermission(
+        this.user?.permissions,
+        permissions.updateMarketDataOfOwnAssetProfile
+      );
+
+    this.canManageYahooFinanceConnection =
+      this.assetProfile?.dataSource === 'MANUAL' &&
+      (canUpdateAllAssetProfiles || canUpdateOwnAssetProfile);
   }
 
   private getActivityFilters(): Filter[] {

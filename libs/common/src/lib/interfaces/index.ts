@@ -97,6 +97,7 @@ import type { UserItem } from './user-item.interface';
 import type { UserSettings } from './user-settings.interface';
 import type { User } from './user.interface';
 import type { XRayRulesSettings } from './x-ray-rules-settings.interface';
+import type { YahooFinanceConnection } from './yahoo-finance-connection.interface';
 
 export {
   Access,
@@ -192,5 +193,6 @@ export {
   UserItem,
   UserSettings,
   WatchlistResponse,
-  XRayRulesSettings
+  XRayRulesSettings,
+  YahooFinanceConnection
 };

@@ -7,7 +7,8 @@ import { ApiService } from '@ghostfolio/api/services/api/api.service';
 import { SymbolProfileService } from '@ghostfolio/api/services/symbol-profile/symbol-profile.service';
 import {
   CreateAssetProfileSplitDto,
-  UpdateAssetProfileDataDto
+  UpdateAssetProfileDataDto,
+  UpdateManualTickerYahooFinanceConnectionDto
 } from '@ghostfolio/common/dtos';
 import { getCurrencyFromSymbol, isCurrency } from '@ghostfolio/common/helper';
 import { AssetProfileResponse } from '@ghostfolio/common/interfaces';
@@ -178,6 +179,66 @@ export class AssetProfilesController {
       symbol,
       symbolProfileId
     });
+  }
+
+  @Patch(':dataSource/:symbol/yahoo-finance-connection')
+  @UseGuards(AuthGuard('jwt'))
+  @UseInterceptors(TransformDataSourceInRequestInterceptor)
+  @UseInterceptors(TransformDataSourceInResponseInterceptor)
+  public async updateManualTickerYahooFinanceConnection(
+    @Body() data: UpdateManualTickerYahooFinanceConnectionDto,
+    @Param('dataSource') dataSource: DataSource,
+    @Param('symbol') symbol: string
+  ): Promise<EnhancedAssetProfile> {
+    if (data.yahooFinanceConnection === undefined) {
+      throw new HttpException(
+        getReasonPhrase(StatusCodes.BAD_REQUEST),
+        StatusCodes.BAD_REQUEST
+      );
+    }
+
+    const [assetProfile] = await this.symbolProfileService.getSymbolProfiles([
+      { dataSource, symbol }
+    ]);
+
+    if (!assetProfile || dataSource !== DataSource.MANUAL) {
+      throw new HttpException(
+        getReasonPhrase(StatusCodes.NOT_FOUND),
+        StatusCodes.NOT_FOUND
+      );
+    }
+
+    const canUpdateAllAssetProfiles =
+      hasPermission(
+        this.request.user.permissions,
+        permissions.createMarketData
+      ) &&
+      hasPermission(
+        this.request.user.permissions,
+        permissions.updateMarketData
+      );
+    const canUpdateOwnAssetProfile =
+      assetProfile.userId === this.request.user.id &&
+      hasPermission(
+        this.request.user.permissions,
+        permissions.createMarketDataOfOwnAssetProfile
+      ) &&
+      hasPermission(
+        this.request.user.permissions,
+        permissions.updateMarketDataOfOwnAssetProfile
+      );
+
+    if (!canUpdateAllAssetProfiles && !canUpdateOwnAssetProfile) {
+      throw new HttpException(
+        getReasonPhrase(StatusCodes.FORBIDDEN),
+        StatusCodes.FORBIDDEN
+      );
+    }
+
+    return this.assetProfilesService.updateManualTickerYahooFinanceConnection(
+      { dataSource, symbol },
+      data
+    );
   }
 
   @HasPermission(permissions.accessAdminControl)

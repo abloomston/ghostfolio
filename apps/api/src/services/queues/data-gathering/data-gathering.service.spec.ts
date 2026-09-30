@@ -10,7 +10,10 @@ describe('DataGatheringService', () => {
   let dataGatheringQueue: { addBulk: jest.Mock; clean: jest.Mock };
   let dataGatheringService: DataGatheringService;
   let dataProviderService: { getHistoricalRaw: jest.Mock };
-  let prismaService: { marketData: { groupBy: jest.Mock; upsert: jest.Mock } };
+  let prismaService: {
+    marketData: { groupBy: jest.Mock; upsert: jest.Mock };
+    symbolProfile: { findMany: jest.Mock };
+  };
 
   beforeEach(() => {
     dataGatheringQueue = {
@@ -22,7 +25,8 @@ describe('DataGatheringService', () => {
       marketData: {
         groupBy: jest.fn().mockResolvedValue([]),
         upsert: jest.fn().mockResolvedValue({})
-      }
+      },
+      symbolProfile: { findMany: jest.fn().mockResolvedValue([]) }
     };
 
     dataGatheringService = new DataGatheringService(
@@ -107,6 +111,23 @@ describe('DataGatheringService', () => {
         { dataSource: 'COINGECKO', symbol: 'bitcoin' },
         { dataSource: 'YAHOO', symbol: 'AAPL' }
       ]);
+    });
+  });
+
+  describe('getHourlyAssetProfileIdentifiers', () => {
+    it('includes manual tickers connected to Yahoo Finance', async () => {
+      prismaService.symbolProfile.findMany.mockResolvedValue([
+        {
+          dataSource: 'MANUAL',
+          manualTickerYahooFinanceConnection: { symbol: 'SPY' },
+          scraperConfiguration: null,
+          symbol: 'manual-symbol'
+        }
+      ]);
+
+      await expect(
+        dataGatheringService['getHourlyAssetProfileIdentifiers']()
+      ).resolves.toEqual([{ dataSource: 'MANUAL', symbol: 'manual-symbol' }]);
     });
   });
 

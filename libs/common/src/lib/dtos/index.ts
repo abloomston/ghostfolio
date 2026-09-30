@@ -23,6 +23,7 @@ import { UpdateAccountDto } from './update-account.dto';
 import { UpdateAssetProfileDataDto } from './update-asset-profile-data.dto';
 import { UpdateAssetProfileDto } from './update-asset-profile.dto';
 import { UpdateBulkMarketDataDto } from './update-bulk-market-data.dto';
+import { UpdateManualTickerYahooFinanceConnectionDto } from './update-manual-ticker-yahoo-finance-connection.dto';
 import { UpdateMarketDataDto } from './update-market-data.dto';
 import { UpdateOrderDto } from './update-order.dto';
 import { UpdateOwnAccessTokenDto } from './update-own-access-token.dto';
@@ -57,6 +58,7 @@ export {
   UpdateAssetProfileDataDto,
   UpdateAssetProfileDto,
   UpdateBulkMarketDataDto,
+  UpdateManualTickerYahooFinanceConnectionDto,
   UpdateMarketDataDto,
   UpdateOrderDto,
   UpdateOwnAccessTokenDto,

@@ -14,6 +14,7 @@ import { Injectable } from '@nestjs/common';
 import {
   AssetProfileOverrides,
   DataSource,
+  ManualTickerYahooFinanceConnection,
   Prisma,
   SymbolProfile
 } from '@prisma/client';
@@ -61,7 +62,8 @@ export class SymbolProfileService {
           include: {
             user: true
           }
-        }
+        },
+        manualTickerYahooFinanceConnection: true
       },
       orderBy: [{ symbol: 'asc' }],
       where: {
@@ -142,7 +144,8 @@ export class SymbolProfileService {
             select: { date: true },
             take: 1
           },
-          assetProfileOverrides: true
+          assetProfileOverrides: true,
+          manualTickerYahooFinanceConnection: true
         },
         where: {
           OR: aAssetProfileIdentifiers.map(({ dataSource, symbol }) => {
@@ -167,7 +170,8 @@ export class SymbolProfileService {
           _count: {
             select: { activities: true, watchedBy: true }
           },
-          assetProfileOverrides: true
+          assetProfileOverrides: true,
+          manualTickerYahooFinanceConnection: true
         },
         where: {
           id: {
@@ -247,6 +251,7 @@ export class SymbolProfileService {
         date: Date;
       }[];
       assetProfileOverrides: AssetProfileOverrides;
+      manualTickerYahooFinanceConnection: ManualTickerYahooFinanceConnection | null;
     })[]
   ): EnhancedAssetProfile[] {
     return symbolProfiles.map((symbolProfile) => {
@@ -272,7 +277,10 @@ export class SymbolProfileService {
           symbolProfileWithOverrides?.sectors as unknown as Prisma.JsonArray
         ),
         symbolMapping: this.getSymbolMapping(symbolProfileWithOverrides),
-        watchedByCount: 0
+        watchedByCount: 0,
+        yahooFinanceConnection: this.getYahooFinanceConnection(
+          symbolProfile.manualTickerYahooFinanceConnection
+        )
       };
 
       item.activitiesCount = symbolProfile._count.activities;
@@ -283,6 +291,7 @@ export class SymbolProfileService {
       delete item.activities;
 
       delete item.assetProfileOverrides;
+      delete item.manualTickerYahooFinanceConnection;
 
       return item;
     });
@@ -356,6 +365,19 @@ export class SymbolProfileService {
         weight: weight as number
       };
     });
+  }
+
+  private getYahooFinanceConnection(
+    connection: ManualTickerYahooFinanceConnection | null
+  ) {
+    if (!connection) {
+      return undefined;
+    }
+
+    return {
+      beta: connection.beta,
+      symbol: connection.symbol
+    };
   }
 
   private getSymbolMapping(symbolProfile: SymbolProfile) {

@@ -488,6 +488,10 @@ export class AdminService {
       url
     }: Prisma.SymbolProfileUpdateInput
   ) {
+    const isConversionFromManualDataSource =
+      dataSource === DataSource.MANUAL &&
+      newDataSource !== undefined &&
+      newDataSource !== DataSource.MANUAL;
     const isConversionToManualDataSource =
       newDataSource === DataSource.MANUAL && dataSource !== DataSource.MANUAL;
 
@@ -517,6 +521,13 @@ export class AdminService {
       }
 
       const operations: Prisma.PrismaPromise<unknown>[] = [
+        ...(isConversionFromManualDataSource
+          ? [
+              this.prismaService.manualTickerYahooFinanceConnection.deleteMany({
+                where: { symbolProfile: { dataSource, symbol } }
+              })
+            ]
+          : []),
         this.symbolProfileService.updateAssetProfileIdentifier(
           {
             dataSource,

@@ -11,6 +11,7 @@ import {
   UpdateAccessDto,
   UpdateAccountDto,
   UpdateBulkMarketDataDto,
+  UpdateManualTickerYahooFinanceConnectionDto,
   UpdateOrderDto,
   UpdateOwnAccessTokenDto,
   UpdatePropertyDto,
@@ -37,6 +38,7 @@ import {
   CreateStripeCheckoutSessionResponse,
   DataProviderHealthResponse,
   DataProviderHistoricalResponse,
+  EnhancedAssetProfile,
   ExportResponse,
   Filter,
   ImportResponse,
@@ -881,6 +883,16 @@ export class DataService {
 
   public postBenchmark(benchmark: AssetProfileIdentifier) {
     return this.http.post('/api/v1/benchmarks', benchmark);
+  }
+
+  public patchYahooFinanceConnection(
+    { dataSource, symbol }: AssetProfileIdentifier,
+    data: UpdateManualTickerYahooFinanceConnectionDto
+  ) {
+    return this.http.patch<EnhancedAssetProfile>(
+      `/api/v1/asset-profiles/${dataSource}/${encodeURIComponent(symbol)}/yahoo-finance-connection`,
+      data
+    );
   }
 
   public postMarketData({

@@ -967,6 +967,14 @@
           <context context-type="linenumber">42</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="9007021475162613277" datatype="html">
+        <source>Yahoo Finance Connection</source>
+        <target state="new">Yahoo Finance Connection</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
+          <context context-type="linenumber">352</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="6130372166370766747" datatype="html">
         <source>Sectors Count</source>
         <target state="translated">行业数</target>
@@ -1049,6 +1057,14 @@
         <context-group purpose="location">
           <context context-type="sourcefile">libs/ui/src/lib/historical-market-data-editor/historical-market-data-editor.component.html</context>
           <context context-type="linenumber">69</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="107375811470990557" datatype="html">
+        <source>Historical market prices are generated from the Yahoo Finance connection. Disconnect it to edit manual market prices.</source>
+        <target state="new">Historical market prices are generated from the Yahoo Finance connection. Disconnect it to edit manual market prices.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
+          <context context-type="linenumber">527</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5298486223740169185" datatype="html">
@@ -2196,7 +2212,7 @@
         <target state="translated">报告数据故障</target>
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
-          <context context-type="linenumber">480</context>
+          <context context-type="linenumber">576</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5451369123952965511" datatype="html">
@@ -2213,6 +2229,14 @@
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/components/subscription-interstitial-dialog/subscription-interstitial-dialog.html</context>
           <context context-type="linenumber">18</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="7832741741127982661" datatype="html">
+        <source>Connected to Yahoo Finance ticker <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ assetProfile.yahooFinanceConnection.symbol }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong &gt;"/> with beta <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION_1" equiv-text="{{ assetProfile.yahooFinanceConnection.beta }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong &gt;"/>.</source>
+        <target state="new">Connected to Yahoo Finance ticker <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ assetProfile.yahooFinanceConnection.symbol }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong &gt;"/> with beta <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION_1" equiv-text="{{ assetProfile.yahooFinanceConnection.beta }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong &gt;"/>.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
+          <context context-type="linenumber">355</context>
         </context-group>
       </trans-unit>
       <trans-unit id="194443019490698012" datatype="html">
@@ -2956,7 +2980,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
-          <context context-type="linenumber">411</context>
+          <context context-type="linenumber">500</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/components/user-detail-dialog/user-detail-dialog.html</context>
@@ -3005,6 +3029,14 @@
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/pages/accounts/create-or-update-account-dialog/create-or-update-account-dialog.html</context>
           <context context-type="linenumber">109</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8642933560172571247" datatype="html">
+        <source>No Yahoo Finance connection is configured.</source>
+        <target state="new">No Yahoo Finance connection is configured.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
+          <context context-type="linenumber">367</context>
         </context-group>
       </trans-unit>
       <trans-unit id="8643034887919513109" datatype="html">
@@ -3060,7 +3092,7 @@
         <target state="translated">市场数据</target>
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
-          <context context-type="linenumber">431</context>
+          <context context-type="linenumber">520</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">libs/common/src/lib/routes/routes.ts</context>
@@ -3971,6 +4003,14 @@
           <context context-type="linenumber">198</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="229809145184259043" datatype="html">
+        <source>Could not save the Yahoo Finance connection</source>
+        <target state="new">Could not save the Yahoo Finance connection</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.component.ts</context>
+          <context context-type="linenumber">813</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="1223835682032238688" datatype="html">
         <source>into minimalism</source>
         <target state="translated">进入极简主义</target>
@@ -4113,6 +4153,14 @@
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/pages/landing/landing-page.html</context>
           <context context-type="linenumber">334</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="3802661057092652452" datatype="html">
+        <source>Yahoo Finance connection has been removed</source>
+        <target state="new">Yahoo Finance connection has been removed</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.component.ts</context>
+          <context context-type="linenumber">804</context>
         </context-group>
       </trans-unit>
       <trans-unit id="3824165347269033834" datatype="html">
@@ -4276,7 +4324,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
-          <context context-type="linenumber">376</context>
+          <context context-type="linenumber">465</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/components/user-detail-dialog/user-detail-dialog.html</context>
@@ -4465,6 +4513,14 @@
         <context-group purpose="location">
           <context context-type="sourcefile">libs/ui/src/lib/portfolio-filter-form/portfolio-filter-form.component.html</context>
           <context context-type="linenumber">13</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="3649157234821167386" datatype="html">
+        <source>Yahoo Finance Ticker</source>
+        <target state="new">Yahoo Finance Ticker</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
+          <context context-type="linenumber">381</context>
         </context-group>
       </trans-unit>
       <trans-unit id="8716714788752456736" datatype="html">
@@ -5131,6 +5187,14 @@
           <context context-type="linenumber">362</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="8289732336438690874" datatype="html">
+        <source>Beta</source>
+        <target state="new">Beta</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
+          <context context-type="linenumber">394</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="5342721262799645301" datatype="html">
         <source>Hello, <x id="INTERPOLATION" equiv-text="{{ publicPortfolioDetails?.alias ?? defaultAlias }}"/> has shared a <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>Portfolio<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> with you!</source>
         <target state="translated">你好，<x id="INTERPOLATION" equiv-text="{{ portfolioPublicDetails?.alias ?? defaultAlias }}"/>分享了一个<x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>投资组合<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/>给你！</target>
@@ -5258,6 +5322,14 @@
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/pages/resources/personal-finance-tools/product-page.component.ts</context>
           <context context-type="linenumber">102</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="4665560570736961962" datatype="html">
+        <source>Ghostfolio uses the current manual market price as an anchor and then applies Yahoo Finance returns scaled by beta.</source>
+        <target state="new">Ghostfolio uses the current manual market price as an anchor and then applies Yahoo Finance returns scaled by beta.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
+          <context context-type="linenumber">429</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5100352603258735382" datatype="html">
@@ -6400,6 +6472,14 @@
           <context context-type="linenumber">89</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="5956112625401241872" datatype="html">
+        <source>Yahoo Finance connection has been saved</source>
+        <target state="new">Yahoo Finance connection has been saved</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.component.ts</context>
+          <context context-type="linenumber">803</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="5957846001261659229" datatype="html">
         <source>South America</source>
         <target state="translated">南美洲</target>
@@ -6573,7 +6653,7 @@
         <target state="translated">关闭持仓</target>
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
-          <context context-type="linenumber">467</context>
+          <context context-type="linenumber">563</context>
         </context-group>
       </trans-unit>
       <trans-unit id="1605678350626749943" datatype="html">
@@ -7227,6 +7307,14 @@
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/pages/resources/personal-finance-tools/product-page.component.ts</context>
           <context context-type="linenumber">140</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="2907016025519254862" datatype="html">
+        <source>Disconnect</source>
+        <target state="new">Disconnect</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
+          <context context-type="linenumber">424</context>
         </context-group>
       </trans-unit>
       <trans-unit id="2932360890997178383" datatype="html">
@@ -7993,6 +8081,10 @@
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/components/admin-tag/create-or-update-tag-dialog/create-or-update-tag-dialog.html</context>
           <context context-type="linenumber">38</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
+          <context context-type="linenumber">414</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/components/home-watchlist/create-watchlist-item-dialog/create-watchlist-item-dialog.html</context>
@@ -9017,7 +9109,7 @@
         <target state="translated">管理资产概况</target>
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>
-          <context context-type="linenumber">495</context>
+          <context context-type="linenumber">591</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5053948923184155554" datatype="html">
@@ -9025,7 +9117,7 @@
         <target state="translated">平均单位价格</target>
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.component.ts</context>
-          <context context-type="linenumber">145</context>
+          <context context-type="linenumber">153</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">apps/client/src/app/components/holding-detail-dialog/holding-detail-dialog.html</context>

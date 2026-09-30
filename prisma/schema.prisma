@@ -176,6 +176,18 @@ model MarketData {
   @@index([symbol])
 }
 
+model ManualTickerYahooFinanceConnection {
+  anchorDate             DateTime
+  anchorMarketPrice      Float
+  anchorYahooMarketPrice Float
+  beta                   Float
+  createdAt              DateTime      @default(now())
+  symbol                 String
+  symbolProfile          SymbolProfile @relation(fields: [symbolProfileId], onDelete: Cascade, references: [id])
+  symbolProfileId        String        @id
+  updatedAt              DateTime      @updatedAt
+}
+
 model Order {
   account         Account?      @relation(fields: [accountId, accountUserId], references: [id, userId])
   accountId       String?
@@ -225,35 +237,36 @@ model Settings {
 }
 
 model SymbolProfile {
-  activities             Order[]
-  assetClass             AssetClass?
-  assetProfileOverrides  AssetProfileOverrides?
-  assetProfileSplits     AssetProfileSplit[]
-  assetSubClass          AssetSubClass?
-  comment                String?
-  countries              Json?
-  createdAt              DateTime               @default(now())
-  currency               String
-  cusip                  String?
-  dataGatheringFrequency DataGatheringFrequency @default(DAILY)
-  dataSource             DataSource
-  figi                   String?
-  figiComposite          String?
-  figiShareClass         String?
-  holdings               Json?                  @default("[]")
-  id                     String                 @id @default(uuid())
-  isActive               Boolean                @default(true)
-  isin                   String?
-  name                   String?
-  scraperConfiguration   Json?
-  sectors                Json?
-  symbol                 String
-  symbolMapping          Json?
-  updatedAt              DateTime               @updatedAt
-  url                    String?
-  user                   User?                  @relation(fields: [userId], onDelete: Cascade, references: [id])
-  userId                 String?
-  watchedBy              User[]                 @relation("UserWatchlist")
+  activities                         Order[]
+  assetClass                         AssetClass?
+  assetProfileOverrides              AssetProfileOverrides?
+  assetProfileSplits                 AssetProfileSplit[]
+  assetSubClass                      AssetSubClass?
+  comment                            String?
+  countries                          Json?
+  createdAt                          DateTime                            @default(now())
+  currency                           String
+  cusip                              String?
+  dataGatheringFrequency             DataGatheringFrequency              @default(DAILY)
+  dataSource                         DataSource
+  figi                               String?
+  figiComposite                      String?
+  figiShareClass                     String?
+  holdings                           Json?                               @default("[]")
+  id                                 String                              @id @default(uuid())
+  isActive                           Boolean                             @default(true)
+  isin                               String?
+  manualTickerYahooFinanceConnection ManualTickerYahooFinanceConnection?
+  name                               String?
+  scraperConfiguration               Json?
+  sectors                            Json?
+  symbol                             String
+  symbolMapping                      Json?
+  updatedAt                          DateTime                            @updatedAt
+  url                                String?
+  user                               User?                               @relation(fields: [userId], onDelete: Cascade, references: [id])
+  userId                             String?
+  watchedBy                          User[]                              @relation("UserWatchlist")
 
   @@unique([dataSource, symbol])
   @@index([assetClass])

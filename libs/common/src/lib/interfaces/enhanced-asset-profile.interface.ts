@@ -10,6 +10,7 @@ import { DataProviderInfo } from './data-provider-info.interface';
 import { Holding } from './holding.interface';
 import { ScraperConfiguration } from './scraper-configuration.interface';
 import { Sector } from './sector.interface';
+import { YahooFinanceConnection } from './yahoo-finance-connection.interface';
 
 export interface EnhancedAssetProfile {
   activitiesCount: number;
@@ -40,4 +41,5 @@ export interface EnhancedAssetProfile {
   url?: string;
   userId?: string;
   watchedByCount?: number;
+  yahooFinanceConnection?: YahooFinanceConnection;
 }
