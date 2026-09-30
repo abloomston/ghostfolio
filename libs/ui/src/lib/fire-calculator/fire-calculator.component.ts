@@ -84,7 +84,8 @@ import { FireCalculatorService } from './fire-calculator.service';
   templateUrl: './fire-calculator.component.html'
 })
 export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
-  @Input() annualInterestRate = 0;
+  @Input() expectedInflationRate = 0;
+  @Input() expectedReturn = 0;
   @Input() colorScheme: ColorScheme;
   @Input() currency: string;
   @Input() deviceType: string;
@@ -96,7 +97,8 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
   @Input() savingsRate = 0;
 
   public calculatorForm = this.formBuilder.group({
-    annualInterestRate: new FormControl<number | null>(null),
+    expectedInflationRate: new FormControl<number | null>(null),
+    expectedReturn: new FormControl<number | null>(null),
     paymentPerPeriod: new FormControl<number | null>(null),
     principalInvestmentAmount: new FormControl<number | null>(null),
     projectedTotalAmount: new FormControl<number | null>(null),
@@ -108,11 +110,11 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
   public minDate = addDays(new Date(), 1);
   public periodsToRetire = 0;
 
-  protected readonly annualInterestRateChanged = output<number>();
-
   protected readonly calculationCompleted =
     output<FireCalculationCompleteEvent>();
 
+  protected readonly expectedInflationRateChanged = output<number>();
+  protected readonly expectedReturnChanged = output<number>();
   protected readonly projectedTotalAmountChanged = output<number>();
   protected readonly retirementDateChanged = output<Date>();
   protected readonly savingsRateChanged = output<number>();
@@ -156,6 +158,7 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
 
         if (projectedTotalAmount !== null && retirementDate !== null) {
           this.calculationCompleted.emit({
+            periodInMonths: this.getPeriodInMonthsForProjection(),
             projectedTotalAmount,
             retirementDate
           });
@@ -163,14 +166,25 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
       });
 
     this.calculatorForm
-      .get('annualInterestRate')
+      .get('expectedInflationRate')
       ?.valueChanges.pipe(
         debounceTime(500),
         takeUntilDestroyed(this.destroyRef)
       )
-      .subscribe((annualInterestRate) => {
-        if (annualInterestRate !== null) {
-          this.annualInterestRateChanged.emit(annualInterestRate);
+      .subscribe((expectedInflationRate) => {
+        if (expectedInflationRate !== null) {
+          this.expectedInflationRateChanged.emit(expectedInflationRate);
+        }
+      });
+    this.calculatorForm
+      .get('expectedReturn')
+      ?.valueChanges.pipe(
+        debounceTime(500),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe((expectedReturn) => {
+        if (expectedReturn !== null) {
+          this.expectedReturnChanged.emit(expectedReturn);
         }
       });
     this.calculatorForm
@@ -225,7 +239,8 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
     if (isNumber(this.fireWealth) && this.fireWealth >= 0) {
       this.calculatorForm.setValue(
         {
-          annualInterestRate: this.annualInterestRate,
+          expectedInflationRate: this.expectedInflationRate,
+          expectedReturn: this.expectedReturn,
           paymentPerPeriod: this.savingsRate,
           principalInvestmentAmount: this.fireWealth,
           projectedTotalAmount: this.projectedTotalAmount,
@@ -242,8 +257,10 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
         // Wait for the chartCanvas
         this.calculatorForm.patchValue(
           {
-            annualInterestRate:
-              this.calculatorForm.get('annualInterestRate')?.value,
+            expectedInflationRate: this.calculatorForm.get(
+              'expectedInflationRate'
+            )?.value,
+            expectedReturn: this.calculatorForm.get('expectedReturn')?.value,
             paymentPerPeriod: this.getPMT(),
             principalInvestmentAmount: this.calculatorForm.get(
               'principalInvestmentAmount'
@@ -259,22 +276,30 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
         );
         this.calculatorForm.get('principalInvestmentAmount')?.disable();
 
+        this.initialize();
+        this.calculationCompleted.emit({
+          periodInMonths: this.getPeriodInMonthsForProjection(),
+          projectedTotalAmount: this.getProjectedTotalAmount(),
+          retirementDate: this.getRetirementDate()
+        });
         this.changeDetectorRef.markForCheck();
       });
     }
 
     if (this.hasPermissionToUpdateUserSettings === true) {
       this.calculatorForm
-        .get('annualInterestRate')
+        .get('expectedInflationRate')
         ?.enable({ emitEvent: false });
+      this.calculatorForm.get('expectedReturn')?.enable({ emitEvent: false });
       this.calculatorForm.get('paymentPerPeriod')?.enable({ emitEvent: false });
       this.calculatorForm
         .get('projectedTotalAmount')
         ?.enable({ emitEvent: false });
     } else {
       this.calculatorForm
-        .get('annualInterestRate')
+        .get('expectedInflationRate')
         ?.disable({ emitEvent: false });
+      this.calculatorForm.get('expectedReturn')?.disable({ emitEvent: false });
       this.calculatorForm
         .get('paymentPerPeriod')
         ?.disable({ emitEvent: false });
@@ -444,6 +469,7 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
     };
 
     const monthsPassedInCurrentYear = getMonth(new Date());
+    const expectedInflationRate = this.getExpectedInflationRate();
 
     for (let period = 1; period <= t; period++) {
       const periodInMonths =
@@ -456,9 +482,33 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
           r
         });
 
-      datasetDeposit.data.push(this.fireWealth);
-      datasetInterest.data.push(interest.toNumber());
-      datasetSavings.data.push(principal.minus(this.fireWealth).toNumber());
+      datasetDeposit.data.push(
+        this.fireCalculatorService
+          .calculatePresentValue({
+            amount: this.fireWealth,
+            expectedInflationRate,
+            periodInMonths
+          })
+          .toNumber()
+      );
+      datasetInterest.data.push(
+        this.fireCalculatorService
+          .calculatePresentValue({
+            amount: interest.toNumber(),
+            expectedInflationRate,
+            periodInMonths
+          })
+          .toNumber()
+      );
+      datasetSavings.data.push(
+        this.fireCalculatorService
+          .calculatePresentValue({
+            amount: principal.minus(this.fireWealth).toNumber(),
+            expectedInflationRate,
+            periodInMonths
+          })
+          .toNumber()
+      );
     }
 
     return {
@@ -502,6 +552,20 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
     }
   }
 
+  private getPeriodInMonthsForProjection() {
+    if (this.periodsToRetire !== Number.MAX_SAFE_INTEGER) {
+      return this.periodsToRetire;
+    }
+
+    const today = new Date();
+
+    return (
+      12 * (this.DEFAULT_RETIREMENT_DATE.getFullYear() - today.getFullYear()) +
+      this.DEFAULT_RETIREMENT_DATE.getMonth() -
+      today.getMonth()
+    );
+  }
+
   private getPMT() {
     return this.calculatorForm.get('paymentPerPeriod')?.value ?? 0;
   }
@@ -526,8 +590,12 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
     return totalAmount.toNumber();
   }
 
+  private getExpectedInflationRate() {
+    return (this.calculatorForm.get('expectedInflationRate')?.value ?? 0) / 100;
+  }
+
   private getR() {
-    return (this.calculatorForm.get('annualInterestRate')?.value ?? 0) / 100;
+    return (this.calculatorForm.get('expectedReturn')?.value ?? 0) / 100;
   }
 
   private getRetirementDate(): Date {

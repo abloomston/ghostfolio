@@ -346,9 +346,19 @@ export class UserService {
       };
     }
 
-    // Set default value for annual interest rate
-    if (!(user.settings.settings as UserSettings)?.annualInterestRate) {
+    // Set default value for expected return
+    if (
+      (user.settings.settings as UserSettings)?.annualInterestRate === undefined
+    ) {
       (user.settings.settings as UserSettings).annualInterestRate = 5;
+    }
+
+    // Set default value for expected inflation
+    if (
+      (user.settings.settings as UserSettings)?.expectedInflationRate ===
+      undefined
+    ) {
+      (user.settings.settings as UserSettings).expectedInflationRate = 2.5;
     }
 
     // Set default value for base currency

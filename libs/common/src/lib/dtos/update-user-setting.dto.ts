@@ -54,6 +54,10 @@ export class UpdateUserSettingDto {
 
   @IsNumber()
   @IsOptional()
+  expectedInflationRate?: number;
+
+  @IsNumber()
+  @IsOptional()
   emergencyFund?: number;
 
   @IsArray()

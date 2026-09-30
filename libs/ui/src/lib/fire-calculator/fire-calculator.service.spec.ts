@@ -15,6 +15,45 @@ describe('FireCalculatorService', () => {
     );
   });
 
+  describe('Present value', () => {
+    it('should deflate a future amount by the expected inflation rate', () => {
+      const futureAmount = fireCalculatorService.calculateCompoundInterest({
+        P: 1000,
+        periodInMonths: 12,
+        PMT: 0,
+        r: 0.05
+      }).totalAmount;
+
+      const presentAmount = fireCalculatorService.calculatePresentValue({
+        amount: futureAmount.toNumber(),
+        expectedInflationRate: 0.025,
+        periodInMonths: 12
+      });
+
+      expect(presentAmount.toNumber()).toBeCloseTo(1025.52, 2);
+    });
+
+    it('should leave amounts unchanged when expected inflation is zero', () => {
+      const presentAmount = fireCalculatorService.calculatePresentValue({
+        amount: 1000,
+        expectedInflationRate: 0,
+        periodInMonths: 120
+      });
+
+      expect(presentAmount.toNumber()).toBe(1000);
+    });
+
+    it('should support fractional-year inflation periods', () => {
+      const presentAmount = fireCalculatorService.calculatePresentValue({
+        amount: 100,
+        expectedInflationRate: 0.1,
+        periodInMonths: 6
+      });
+
+      expect(presentAmount.toNumber()).toBeCloseTo(100 / Math.sqrt(1.1), 10);
+    });
+  });
+
   describe('Test periods to retire', () => {
     it('should return the correct amount of periods to retire with no interst rate', async () => {
       const r = 0;

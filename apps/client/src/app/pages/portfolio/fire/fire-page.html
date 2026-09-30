@@ -10,10 +10,11 @@
           }
         </h4>
         <gf-fire-calculator
-          [annualInterestRate]="user?.settings?.annualInterestRate"
           [colorScheme]="user?.settings?.colorScheme"
           [currency]="user?.settings?.baseCurrency"
           [deviceType]="deviceType()"
+          [expectedInflationRate]="user?.settings?.expectedInflationRate"
+          [expectedReturn]="user?.settings?.annualInterestRate"
           [fireWealth]="fireWealth?.today.valueInBaseCurrency"
           [hasPermissionToUpdateUserSettings]="
             !hasImpersonationId && hasPermissionToUpdateUserSettings
@@ -28,8 +29,9 @@
           [style.pointer-events]="
             user?.subscription?.type === 'Basic' ? 'none' : 'initial'
           "
-          (annualInterestRateChanged)="onAnnualInterestRateChange($event)"
           (calculationCompleted)="onCalculationComplete($event)"
+          (expectedInflationRateChanged)="onExpectedInflationRateChange($event)"
+          (expectedReturnChanged)="onExpectedReturnChange($event)"
           (projectedTotalAmountChanged)="onProjectedTotalAmountChange($event)"
           (retirementDateChanged)="onRetirementDateChange($event)"
           (savingsRateChanged)="onSavingsRateChange($event)"
@@ -130,7 +132,7 @@
           <div>
             <ng-container i18n
               >By <span class="font-weight-bold">{{ retirementDateLabel }}</span
-              >, this is projected to increase to
+              >, in today’s dollars, this is projected to be
               <span class="font-weight-bold"
                 ><gf-value
                   class="d-inline-block"
@@ -151,7 +153,7 @@
                   [value]="withdrawalRatePerMonthProjected?.toNumber()"
                 />
                 per month</span
-              >, assuming a
+              >, assuming an expected annual return of
               <span class="font-weight-bold"
                 ><gf-value
                   class="d-inline-block"
@@ -160,7 +162,15 @@
                   [precision]="2"
                   [value]="user?.settings?.annualInterestRate / 100"
               /></span>
-              annual interest rate.</ng-container
+              and expected annual inflation of
+              <span class="font-weight-bold"
+                ><gf-value
+                  class="d-inline-block"
+                  [isPercent]="true"
+                  [locale]="user?.settings?.locale"
+                  [precision]="2"
+                  [value]="user?.settings?.expectedInflationRate / 100" /></span
+              >.</ng-container
             >
           </div>
         }

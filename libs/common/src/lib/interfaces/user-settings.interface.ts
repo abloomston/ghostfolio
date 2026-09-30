@@ -16,6 +16,7 @@ export interface UserSettings {
   colorScheme?: ColorScheme;
   dateRange?: DateRange;
   emergencyFund?: number;
+  expectedInflationRate?: number;
   'filters.accounts'?: string[];
   'filters.assetClasses'?: AssetClass[];
   'filters.dataSource'?: string;

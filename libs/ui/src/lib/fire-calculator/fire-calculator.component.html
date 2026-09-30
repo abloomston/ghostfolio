@@ -18,9 +18,20 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="w-100">
-          <mat-label i18n>Annual Interest Rate</mat-label>
+          <mat-label i18n>Expected Annual Return</mat-label>
           <input
-            formControlName="annualInterestRate"
+            formControlName="expectedReturn"
+            matInput
+            step="0.25"
+            type="number"
+          />
+          <div class="ml-2" matTextSuffix>%</div>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="w-100">
+          <mat-label i18n>Expected Annual Inflation</mat-label>
+          <input
+            formControlName="expectedInflationRate"
             matInput
             step="0.25"
             type="number"
@@ -59,7 +70,7 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="w-100">
-          <mat-label i18n>Projected Total Amount</mat-label>
+          <mat-label i18n>Projected Total Amount (future dollars)</mat-label>
           <input
             formControlName="projectedTotalAmount"
             matInput
@@ -86,6 +97,10 @@
           class="h-100"
           [style.display]="isLoading ? 'none' : 'block'"
         ></canvas>
+        <p class="mb-0 text-muted" i18n>
+          Chart values are shown in today’s dollars; monthly savings remain
+          fixed in nominal terms.
+        </p>
       </div>
     </div>
   </div>

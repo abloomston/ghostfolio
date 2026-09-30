@@ -39,6 +39,23 @@ export class FireCalculatorService {
     };
   }
 
+  public calculatePresentValue({
+    amount,
+    expectedInflationRate,
+    periodInMonths
+  }: {
+    amount: number;
+    expectedInflationRate: number;
+    periodInMonths: number;
+  }) {
+    const inflationFactor = Math.pow(
+      1 + expectedInflationRate,
+      periodInMonths / this.COMPOUND_PERIOD
+    );
+
+    return new Big(amount).div(inflationFactor);
+  }
+
   public calculatePeriodsToRetire({
     P,
     PMT,
