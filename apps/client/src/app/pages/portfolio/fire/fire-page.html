@@ -131,8 +131,8 @@
         @if (user?.settings?.isExperimentalFeatures) {
           <div>
             <ng-container i18n
-              >By <span class="font-weight-bold">{{ retirementDateLabel }}</span
-              >, in today’s dollars, this is projected to be
+              >At <span class="font-weight-bold">{{ retirementDateLabel }}</span
+              >, your estimated sustainable retirement income is projected to be
               <span class="font-weight-bold"
                 ><gf-value
                   class="d-inline-block"
@@ -153,7 +153,8 @@
                   [value]="withdrawalRatePerMonthProjected?.toNumber()"
                 />
                 per month</span
-              >, assuming an expected annual return of
+              >, in today’s dollars (present value), assuming an expected
+              annual return of
               <span class="font-weight-bold"
                 ><gf-value
                   class="d-inline-block"
