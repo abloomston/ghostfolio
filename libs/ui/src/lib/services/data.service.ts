@@ -682,12 +682,18 @@ export class DataService {
 
   public fetchPortfolioHoldings({
     filters,
+    includeCash,
     range
   }: {
     filters?: Filter[];
+    includeCash?: boolean;
     range?: DateRange;
   } = {}) {
     let params = this.buildFiltersAsQueryParams({ filters });
+
+    if (includeCash !== undefined) {
+      params = params.append('includeCash', includeCash);
+    }
 
     if (range) {
       params = params.append('range', range);
