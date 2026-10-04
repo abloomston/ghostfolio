@@ -496,6 +496,8 @@ export class PortfolioController {
       assetClasses,
       dataSource,
       range,
+      startDate,
+      endDate,
       symbol,
       tags,
       withExcludedAccounts
@@ -510,10 +512,12 @@ export class PortfolioController {
     });
 
     const performanceInformation = await this.portfolioService.getPerformance({
+      endDate,
       filters,
       userId,
       withExcludedAccounts,
-      dateRange: range
+      dateRange: range,
+      startDate
     });
 
     if (

@@ -382,6 +382,11 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
       }
     ];
 
+    this.dateRangeOptions.push({
+      label: '1 ' + $localize`month` + ' (' + $localize`1M` + ')',
+      value: '1m'
+    });
+
     if (
       this.user?.dateOfFirstActivity &&
       differenceInYears(new Date(), this.user.dateOfFirstActivity) >= 1

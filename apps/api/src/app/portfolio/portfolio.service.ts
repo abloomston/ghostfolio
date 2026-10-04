@@ -1190,11 +1190,15 @@ export class PortfolioService {
 
   public async getPerformance({
     dateRange = DEFAULT_DATE_RANGE,
+    endDate: endDateString,
     filters,
+    startDate: startDateString,
     userId
   }: {
     dateRange?: DateRange;
+    endDate?: string;
     filters?: Filter[];
+    startDate?: string;
     userId: string;
     withExcludedAccounts?: boolean;
   }): Promise<PortfolioPerformanceResponse> {
@@ -1247,7 +1251,11 @@ export class PortfolioService {
     const { errors, hasErrors, historicalData } =
       await portfolioCalculator.getSnapshot();
 
-    const { endDate, startDate } = getIntervalFromDateRange({ dateRange });
+    const { endDate, startDate } = getIntervalFromDateRange({
+      dateRange,
+      endDate: parseDate(endDateString),
+      startDate: parseDate(startDateString)
+    });
 
     const { chart } = await portfolioCalculator.getPerformance({
       end: endDate,
