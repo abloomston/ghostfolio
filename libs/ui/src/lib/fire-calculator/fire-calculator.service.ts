@@ -1,9 +1,100 @@
+import { HistoricalDataItem } from '@ghostfolio/common/interfaces';
+
 import { Service } from '@angular/core';
 import { Big } from 'big.js';
+import { subYears } from 'date-fns';
 
 @Service({ autoProvided: false })
 export class FireCalculatorService {
   private readonly COMPOUND_PERIOD = 12;
+
+  public calculateAnnualizedReturnFromHistory({
+    asOf = new Date(),
+    currentPrice,
+    history,
+    years
+  }: {
+    asOf?: Date;
+    currentPrice: number;
+    history: Pick<HistoricalDataItem, 'date' | 'marketPrice'>[];
+    years: number;
+  }): number | undefined {
+    if (
+      !Number.isFinite(currentPrice) ||
+      currentPrice <= 0 ||
+      !Number.isInteger(years) ||
+      years <= 0
+    ) {
+      return undefined;
+    }
+
+    const cutoff = subYears(asOf, years);
+    const historicalPrice = history
+      .filter(({ date, marketPrice }) => {
+        return (
+          marketPrice !== undefined &&
+          Number.isFinite(marketPrice) &&
+          marketPrice > 0 &&
+          new Date(date).getTime() <= cutoff.getTime()
+        );
+      })
+      .sort((first, second) => {
+        return new Date(first.date).getTime() - new Date(second.date).getTime();
+      })
+      .at(-1);
+
+    if (!historicalPrice?.marketPrice) {
+      return undefined;
+    }
+
+    const periodInDays =
+      (asOf.getTime() - new Date(historicalPrice.date).getTime()) /
+      (24 * 60 * 60 * 1000);
+
+    if (periodInDays <= 0) {
+      return undefined;
+    }
+
+    const annualizedReturn =
+      (Math.pow(
+        currentPrice / historicalPrice.marketPrice,
+        365.25 / periodInDays
+      ) -
+        1) *
+      100;
+
+    return Number.isFinite(annualizedReturn) ? annualizedReturn : undefined;
+  }
+
+  public calculateWeightedPortfolioReturn(
+    assets: { annualizedReturn?: number; value: number }[]
+  ): number | undefined {
+    if (assets.some(({ value }) => !Number.isFinite(value) || value < 0)) {
+      return undefined;
+    }
+
+    const contributingAssets = assets.filter(({ value }) => value > 0);
+
+    if (
+      contributingAssets.length === 0 ||
+      contributingAssets.some(
+        ({ annualizedReturn, value }) =>
+          !Number.isFinite(value) ||
+          annualizedReturn === undefined ||
+          !Number.isFinite(annualizedReturn)
+      )
+    ) {
+      return undefined;
+    }
+
+    const totalValue = contributingAssets.reduce((sum, asset) => {
+      return sum + asset.value;
+    }, 0);
+
+    return contributingAssets.reduce((sum, asset) => {
+      return sum + (asset.value / totalValue) * (asset.annualizedReturn ?? 0);
+    }, 0);
+  }
 
   public calculateCompoundInterest({
     P,

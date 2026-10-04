@@ -31,6 +31,10 @@ export class UpdateUserSettingDto {
   @IsOptional()
   benchmark?: string;
 
+  @IsNumber()
+  @IsOptional()
+  cashInterestRate?: number;
+
   @IsIn(['DARK', 'LIGHT'] as ColorScheme[])
   @IsOptional()
   colorScheme?: ColorScheme;
