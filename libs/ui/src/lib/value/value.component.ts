@@ -62,6 +62,7 @@ export class GfValueComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   public readonly copiedTitle = $localize`The value has been copied to the clipboard`;
   public readonly copyToClipboardTitle = $localize`Copy to clipboard`;
+  public readonly abbreviateThousands = input(false);
   public readonly isLoading = input<boolean>(false);
   public readonly precision = input<number>();
 
@@ -79,7 +80,11 @@ export class GfValueComponent implements AfterViewInit, OnChanges, OnDestroy {
   private copyToClipboardTimeout: ReturnType<typeof setTimeout>;
 
   private readonly formatOptions = computed<Intl.NumberFormatOptions>(() => {
-    const digits = this.hasPrecision ? this.precision() : 2;
+    const digits = this.abbreviateThousands()
+      ? 0
+      : this.hasPrecision
+        ? this.precision()
+        : 2;
 
     return {
       maximumFractionDigits: digits,
@@ -115,10 +120,7 @@ export class GfValueComponent implements AfterViewInit, OnChanges, OnDestroy {
         if (this.colorizeSign) {
           if (this.isCurrency) {
             try {
-              this.formattedValue = this.absoluteValue.toLocaleString(
-                this.locale,
-                this.formatOptions()
-              );
+              this.formattedValue = this.formatCurrency(this.absoluteValue);
             } catch {}
           } else if (this.isPercent) {
             try {
@@ -130,10 +132,7 @@ export class GfValueComponent implements AfterViewInit, OnChanges, OnDestroy {
           }
         } else if (this.isCurrency) {
           try {
-            this.formattedValue = this.value?.toLocaleString(
-              this.locale,
-              this.formatOptions()
-            );
+            this.formattedValue = this.formatCurrency(this.value);
           } catch {}
         } else if (this.isPercent) {
           try {
@@ -176,7 +175,7 @@ export class GfValueComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
 
-    if (/^-?0([.,]0*)?$/.test(this.formattedValue)) {
+    if (/^-?0([.,]0*)?k?$/.test(this.formattedValue)) {
       // Remove algebraic sign of values rounding to zero
       this.formattedValue = this.formattedValue.replace(/^-/, '');
       this.useAbsoluteValue = true;
@@ -211,6 +210,15 @@ export class GfValueComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (this.copyToClipboardTimeout) {
       clearTimeout(this.copyToClipboardTimeout);
     }
+  }
+
+  private formatCurrency(value: number) {
+    const shouldAbbreviate = this.abbreviateThousands();
+    const formattedValue = (
+      shouldAbbreviate ? value / 1000 : value
+    ).toLocaleString(this.locale, this.formatOptions());
+
+    return `${formattedValue}${shouldAbbreviate ? 'k' : ''}`;
   }
 
   private initializeVariables() {
