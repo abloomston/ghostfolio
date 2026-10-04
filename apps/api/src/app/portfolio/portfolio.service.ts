@@ -473,10 +473,12 @@ export class PortfolioService {
   public async getHoldings({
     dateRange,
     filters,
+    includeCash = false,
     userId
   }: {
     dateRange: DateRange;
     filters?: Filter[];
+    includeCash?: boolean;
     userId: string;
   }) {
     const {
@@ -494,7 +496,8 @@ export class PortfolioService {
       dateRange,
       userId,
       filters: filtersWithoutSearchQueryFilter,
-      includeAllHoldings: !filterByHoldingType
+      includeAllHoldings: !filterByHoldingType,
+      ...(includeCash ? { includeCash: true } : {})
     });
 
     if (filterBySearchQuery) {
@@ -597,6 +600,7 @@ export class PortfolioService {
     dateRange = DEFAULT_DATE_RANGE,
     filters,
     includeAllHoldings = false,
+    includeCash = false,
     user: userFromCaller,
     userId,
     withExcludedAccounts = false,
@@ -606,6 +610,7 @@ export class PortfolioService {
     dateRange?: DateRange;
     filters?: Filter[];
     includeAllHoldings?: boolean;
+    includeCash?: boolean;
     user?: UserWithSettings;
     userId: string;
     withExcludedAccounts?: boolean;
@@ -858,6 +863,49 @@ export class PortfolioService {
         holdings[indexOfEmergencyFundCashHolding] = emergencyFundCashHolding;
       } else {
         holdings.push(emergencyFundCashHolding);
+      }
+    }
+
+    if (includeCash) {
+      const valueIncludingCash = filteredValueInBaseCurrency.plus(
+        cashDetails.balanceInBaseCurrency
+      );
+      const cashPositions = this.getCashPositions({
+        cashDetails,
+        userCurrency,
+        value: valueIncludingCash
+      });
+
+      for (const cashPosition of Object.values(cashPositions)) {
+        if (cashPosition.valueInBaseCurrency === 0) {
+          continue;
+        }
+
+        const cashPositionIdentifier = getAssetProfileIdentifier(
+          cashPosition.assetProfile
+        );
+        const existingPosition = holdings.find(({ assetProfile }) => {
+          return (
+            getAssetProfileIdentifier(assetProfile) === cashPositionIdentifier
+          );
+        });
+
+        if (existingPosition) {
+          existingPosition.investment += cashPosition.investment;
+          existingPosition.quantity += cashPosition.quantity;
+          existingPosition.valueInBaseCurrency +=
+            cashPosition.valueInBaseCurrency;
+        } else {
+          holdings.push(cashPosition);
+        }
+      }
+
+      for (const holding of holdings) {
+        holding.allocationInPercentage = valueIncludingCash.gt(0)
+          ? new Big(holding.valueInBaseCurrency)
+              .div(valueIncludingCash)
+              .toNumber()
+          : 0;
       }
     }
 
@@ -1798,12 +1846,14 @@ export class PortfolioService {
 
       if (cashPositions[account.currency]) {
         cashPositions[account.currency].investment += convertedBalance;
+        cashPositions[account.currency].quantity += account.balance;
         cashPositions[account.currency].valueInBaseCurrency += convertedBalance;
       } else {
         cashPositions[account.currency] = this.getInitialCashPosition({
           balance: convertedBalance,
           currency: account.currency
         });
+        cashPositions[account.currency].quantity = account.balance;
       }
     }
 

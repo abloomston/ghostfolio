@@ -486,6 +486,30 @@ describe('PortfolioService', () => {
       ]);
     });
 
+    it('should add account cash to cash holdings when requested', async () => {
+      setUpCashOnlyPortfolio();
+      jest
+        .spyOn(exchangeRateDataService, 'toCurrency')
+        .mockImplementation((value, fromCurrency, toCurrency) => {
+          return fromCurrency === toCurrency ? value : value * 0.91;
+        });
+
+      const { holdings } = await portfolioService.getDetails({
+        filters: [],
+        includeCash: true,
+        userId: userDummyData.id
+      });
+
+      expect(holdings).toHaveLength(1);
+      expect(holdings[0]).toEqual(
+        expect.objectContaining({
+          allocationInPercentage: 1,
+          quantity: 4000,
+          valueInBaseCurrency: 3640
+        })
+      );
+    });
+
     it('should replace the existing cash holding instead of adding a second one when filtering by the emergency fund tag', async () => {
       setUpCashOnlyPortfolio({ baseCurrency: 'USD', emergencyFund: 1000 });
 
@@ -592,6 +616,22 @@ describe('PortfolioService', () => {
         dateRange: 'max',
         filters: undefined,
         includeAllHoldings: true,
+        userId: userDummyData.id
+      });
+    });
+
+    it('should request account cash when includeCash is true', async () => {
+      await portfolioService.getHoldings({
+        dateRange: 'max',
+        includeCash: true,
+        userId: userDummyData.id
+      });
+
+      expect(portfolioService.getDetails).toHaveBeenCalledWith({
+        dateRange: 'max',
+        filters: undefined,
+        includeAllHoldings: true,
+        includeCash: true,
         userId: userDummyData.id
       });
     });

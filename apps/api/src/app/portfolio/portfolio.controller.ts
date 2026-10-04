@@ -384,6 +384,7 @@ export class PortfolioController {
       assetClasses,
       dataSource,
       holdingType,
+      includeCash,
       query,
       range,
       symbol,
@@ -403,7 +404,8 @@ export class PortfolioController {
     const holdings = await this.portfolioService.getHoldings({
       filters,
       userId,
-      dateRange: range
+      dateRange: range,
+      includeCash
     });
 
     return { holdings };

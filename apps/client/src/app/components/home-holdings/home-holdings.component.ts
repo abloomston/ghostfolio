@@ -29,6 +29,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { Router, RouterModule } from '@angular/router';
 import { addIcons } from 'ionicons';
 import { gridOutline, reorderFourOutline } from 'ionicons/icons';
@@ -41,6 +42,7 @@ import { DeviceDetectorService } from 'ngx-device-detector';
     GfToggleComponent,
     GfTreemapChartComponent,
     MatButtonModule,
+    MatCheckboxModule,
     RouterModule
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
@@ -73,6 +75,7 @@ export class GfHomeHoldingsComponent implements OnInit {
       }
     ];
   protected holdingType: HoldingType = 'ACTIVE';
+  protected includeCash = true;
   protected readonly holdingTypeOptions: ToggleOption<HoldingType>[] = [
     { label: $localize`Active`, value: 'ACTIVE' },
     { label: $localize`Closed`, value: 'CLOSED' }
@@ -142,6 +145,12 @@ export class GfHomeHoldingsComponent implements OnInit {
     this.initialize();
   }
 
+  protected onChangeIncludeCash(shouldIncludeCash: boolean) {
+    this.includeCash = shouldIncludeCash;
+
+    this.initialize();
+  }
+
   protected onHoldingClicked({ dataSource, symbol }: AssetProfileIdentifier) {
     if (dataSource && symbol) {
       this.router.navigate([], {
@@ -157,6 +166,7 @@ export class GfHomeHoldingsComponent implements OnInit {
 
     return this.dataService.fetchPortfolioHoldings({
       filters,
+      includeCash: this.includeCash,
       range: this.user?.settings?.dateRange
     });
   }
