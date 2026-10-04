@@ -72,6 +72,7 @@
             <span class="font-weight-bold"
               ><gf-value
                 class="d-inline-block"
+                [abbreviateThousands]="true"
                 [isCurrency]="true"
                 [locale]="user?.settings?.locale"
                 [unit]="user?.settings?.baseCurrency"
@@ -83,6 +84,7 @@
             <span class="font-weight-bold"
               ><gf-value
                 class="d-inline-block"
+                [abbreviateThousands]="true"
                 [isCurrency]="true"
                 [locale]="user?.settings?.locale"
                 [unit]="user?.settings?.baseCurrency"
@@ -93,6 +95,7 @@
             <span class="font-weight-bold"
               ><gf-value
                 class="d-inline-block"
+                [abbreviateThousands]="true"
                 [isCurrency]="true"
                 [locale]="user?.settings?.locale"
                 [unit]="user?.settings?.baseCurrency"
@@ -136,6 +139,7 @@
               <span class="font-weight-bold"
                 ><gf-value
                   class="d-inline-block"
+                  [abbreviateThousands]="true"
                   [isCurrency]="true"
                   [locale]="user?.settings?.locale"
                   [unit]="user?.settings?.baseCurrency"
@@ -147,14 +151,15 @@
               <span class="font-weight-bold"
                 ><gf-value
                   class="d-inline-block"
+                  [abbreviateThousands]="true"
                   [isCurrency]="true"
                   [locale]="user?.settings?.locale"
                   [unit]="user?.settings?.baseCurrency"
                   [value]="withdrawalRatePerMonthProjected?.toNumber()"
                 />
                 per month</span
-              >, in today’s dollars (present value), assuming an expected
-              annual return of
+              >, in today’s dollars (present value), assuming an expected annual
+              return of
               <span class="font-weight-bold"
                 ><gf-value
                   class="d-inline-block"
