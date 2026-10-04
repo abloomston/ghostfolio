@@ -184,8 +184,9 @@
     <div class="col-lg">
       <gf-benchmark-comparator
         class="h-100"
-        [benchmark]="benchmark"
+        [benchmarkAllocations]="benchmarkAllocations"
         [benchmarkDataItems]="benchmarkDataItems"
+        [benchmarkLabel]="benchmarkLabel"
         [benchmarks]="benchmarks"
         [colorScheme]="user?.settings?.colorScheme"
         [isLoading]="isLoadingBenchmarkComparator || isLoadingInvestmentChart"

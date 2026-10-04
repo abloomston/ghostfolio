@@ -1,3 +1,4 @@
+import { isValidBenchmarkComposition } from '@ghostfolio/common/benchmark-composition.helper';
 import {
   getChartBorderColor,
   getChartElementsOptions,
@@ -8,7 +9,11 @@ import {
 } from '@ghostfolio/common/chart-helper';
 import { primaryColorRgb, secondaryColorRgb } from '@ghostfolio/common/config';
 import { getLocale, parseDate } from '@ghostfolio/common/helper';
-import { LineChartItem, User } from '@ghostfolio/common/interfaces';
+import {
+  BenchmarkAllocation,
+  LineChartItem,
+  User
+} from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
 import { internalRoutes } from '@ghostfolio/common/routes/routes';
 import { ColorScheme } from '@ghostfolio/common/types';
@@ -26,9 +31,12 @@ import {
   OnChanges,
   OnDestroy,
   output,
+  SimpleChanges,
   viewChild
 } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterModule } from '@angular/router';
 import { IonIcon } from '@ionic/angular/standalone';
@@ -55,6 +63,8 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
     FormsModule,
     GfPremiumIndicatorComponent,
     IonIcon,
+    MatButtonModule,
+    MatInputModule,
     MatSelectModule,
     NgxSkeletonLoaderModule,
     ReactiveFormsModule,
@@ -65,8 +75,9 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
   templateUrl: './benchmark-comparator.component.html'
 })
 export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
-  public readonly benchmark = input<Partial<SymbolProfile>>();
+  public readonly benchmarkAllocations = input<BenchmarkAllocation[]>([]);
   public readonly benchmarkDataItems = input<LineChartItem[]>([]);
+  public readonly benchmarkLabel = input<string>('');
   public readonly benchmarks = input<Partial<SymbolProfile>[]>();
   public readonly colorScheme = input.required<ColorScheme>();
   public readonly isLoading = input<boolean>();
@@ -74,8 +85,9 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
   public readonly performanceDataItems = input.required<LineChartItem[]>();
   public readonly user = input<User>();
 
-  public readonly benchmarkChanged = output<string>();
+  public readonly benchmarkChanged = output<BenchmarkAllocation[]>();
 
+  protected allocations: BenchmarkAllocation[] = [];
   protected chart: Chart<'line'>;
   protected hasPermissionToAccessAdminControl: boolean;
   protected readonly routerLinkAdminControlMarketData =
@@ -99,7 +111,14 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
     addIcons({ arrowForwardOutline });
   }
 
-  public ngOnChanges() {
+  public ngOnChanges(changes: SimpleChanges) {
+    if (changes['benchmarkAllocations']) {
+      const allocations = this.benchmarkAllocations();
+      this.allocations = allocations.length
+        ? allocations.map(({ id, percentage }) => ({ id, percentage }))
+        : [{ id: '', percentage: 100 }];
+    }
+
     this.hasPermissionToAccessAdminControl = hasPermission(
       this.user()?.permissions,
       permissions.accessAdminControl
@@ -114,8 +133,69 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
     this.chart?.destroy();
   }
 
-  protected onChangeBenchmark(symbolProfileId: string) {
-    this.benchmarkChanged.emit(symbolProfileId);
+  protected onAddBenchmark() {
+    this.allocations = [...this.allocations, { id: '', percentage: 0 }];
+  }
+
+  protected onChangeBenchmark(index: number, id: string) {
+    this.allocations = this.allocations.map((allocation, allocationIndex) => {
+      return allocationIndex === index ? { ...allocation, id } : allocation;
+    });
+
+    this.emitIfValid();
+  }
+
+  protected onChangePercentage(index: number, percentage: string) {
+    const value = Number(percentage);
+    this.allocations = this.allocations.map((allocation, allocationIndex) => {
+      return allocationIndex === index
+        ? { ...allocation, percentage: Number.isFinite(value) ? value : 0 }
+        : allocation;
+    });
+
+    this.emitIfValid();
+  }
+
+  protected onRemoveBenchmark(index: number) {
+    this.allocations = this.allocations.filter((_, itemIndex) => {
+      return itemIndex !== index;
+    });
+
+    if (this.allocations.length === 0) {
+      this.allocations = [{ id: '', percentage: 100 }];
+    }
+
+    this.emitIfValid();
+  }
+
+  protected isBenchmarkSelectedInAnotherRow(id: string, index: number) {
+    return this.allocations.some((allocation, allocationIndex) => {
+      return allocationIndex !== index && allocation.id === id;
+    });
+  }
+
+  protected getTotalPercentage() {
+    return this.allocations.reduce((total, { id, percentage }) => {
+      return id ? total + (Number(percentage) || 0) : total;
+    }, 0);
+  }
+
+  protected hasInvalidComposition() {
+    const selectedAllocations = this.allocations.filter(({ id }) => id);
+    return (
+      selectedAllocations.length > 0 &&
+      !isValidBenchmarkComposition(selectedAllocations)
+    );
+  }
+
+  private emitIfValid() {
+    const selectedAllocations = this.allocations.filter(({ id }) => id);
+
+    if (selectedAllocations.length === 0) {
+      this.benchmarkChanged.emit([]);
+    } else if (isValidBenchmarkComposition(selectedAllocations)) {
+      this.benchmarkChanged.emit(selectedAllocations);
+    }
   }
 
   private initialize() {
@@ -149,7 +229,7 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
               y: benchmarkDataValues[date]
             };
           }),
-          label: this.benchmark()?.name ?? $localize`Benchmark`
+          label: this.benchmarkLabel() || $localize`Benchmark`
         }
       ]
     };

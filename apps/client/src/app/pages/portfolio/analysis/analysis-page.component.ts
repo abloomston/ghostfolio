@@ -2,11 +2,17 @@ import { GfBenchmarkComparatorComponent } from '@ghostfolio/client/components/be
 import { GfInvestmentChartComponent } from '@ghostfolio/client/components/investment-chart/investment-chart.component';
 import { UserService } from '@ghostfolio/client/services/user/user.service';
 import {
+  calculateBlendedBenchmarkData,
+  parseBenchmarkSetting,
+  serializeBenchmarkSetting
+} from '@ghostfolio/common/benchmark-composition.helper';
+import {
   DEFAULT_DATE_RANGE,
   NUMERICAL_PRECISION_THRESHOLD_6_FIGURES
 } from '@ghostfolio/common/config';
 import { canOpenHoldingDetail } from '@ghostfolio/common/helper';
 import {
+  BenchmarkAllocation,
   HistoricalDataItem,
   InvestmentItem,
   PortfolioInvestmentsResponse,
@@ -78,8 +84,9 @@ import { forkJoin } from 'rxjs';
   templateUrl: './analysis-page.html'
 })
 export class GfAnalysisPageComponent implements OnInit {
-  protected benchmark?: Partial<SymbolProfile>;
+  protected benchmarkAllocations: BenchmarkAllocation[] = [];
   protected benchmarkDataItems: HistoricalDataItem[] = [];
+  protected benchmarkLabel = '';
   protected readonly benchmarks: Partial<SymbolProfile>[];
   protected bottom3: PortfolioPosition[];
   protected dividendsByGroup: InvestmentItem[];
@@ -128,6 +135,7 @@ export class GfAnalysisPageComponent implements OnInit {
     () => this.deviceDetectorService.deviceInfo().deviceType
   );
   private dateOfFirstActivity: Date;
+  private benchmarkDataRequestId = 0;
 
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private readonly clipboard = inject(Clipboard);
@@ -171,9 +179,10 @@ export class GfAnalysisPageComponent implements OnInit {
               : DEFAULT_DATE_RANGE;
           }
 
-          this.benchmark = this.benchmarks.find(({ id }) => {
-            return id === this.user.settings?.benchmark;
-          });
+          this.benchmarkAllocations = parseBenchmarkSetting(
+            this.user.settings?.benchmark
+          );
+          this.updateBenchmarkLabel();
 
           this.hasPermissionToReadAiPrompt = hasPermission(
             this.user.permissions,
@@ -187,9 +196,9 @@ export class GfAnalysisPageComponent implements OnInit {
       });
   }
 
-  protected onChangeBenchmark(symbolProfileId: string) {
+  protected onChangeBenchmark(allocations: BenchmarkAllocation[]) {
     this.dataService
-      .putUserSetting({ benchmark: symbolProfileId })
+      .putUserSetting({ benchmark: serializeBenchmarkSetting(allocations) })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         this.userService
@@ -197,6 +206,11 @@ export class GfAnalysisPageComponent implements OnInit {
           .pipe(takeUntilDestroyed(this.destroyRef))
           .subscribe((user) => {
             this.user = user;
+            this.benchmarkAllocations = parseBenchmarkSetting(
+              this.user.settings?.benchmark
+            );
+            this.updateBenchmarkLabel();
+            this.updateBenchmarkDataItems();
 
             this.changeDetectorRef.markForCheck();
           });
@@ -487,40 +501,75 @@ export class GfAnalysisPageComponent implements OnInit {
     this.changeDetectorRef.markForCheck();
   }
 
+  private updateBenchmarkLabel() {
+    this.benchmarkLabel = this.benchmarkAllocations
+      .map(({ id, percentage }) => {
+        const benchmark = this.benchmarks.find((item) => item.id === id);
+        const name = benchmark?.symbol ?? benchmark?.name ?? id;
+        return `${percentage}% ${name}`;
+      })
+      .join(' + ');
+  }
+
   private updateBenchmarkDataItems() {
+    const requestId = ++this.benchmarkDataRequestId;
     this.benchmarkDataItems = [];
+    this.isLoadingBenchmarkComparator = false;
 
-    if (this.user.settings.benchmark) {
-      const { dataSource, symbol } =
-        this.benchmarks.find(({ id }) => {
-          return id === this.user.settings.benchmark;
-        }) ?? {};
+    const allocations = parseBenchmarkSetting(this.user?.settings?.benchmark);
+    const benchmarkIdentifiers = allocations
+      .map(({ id }) => {
+        const benchmark = this.benchmarks.find((item) => item.id === id);
 
-      if (dataSource && symbol) {
-        this.isLoadingBenchmarkComparator = true;
+        return benchmark?.dataSource && benchmark.symbol
+          ? { dataSource: benchmark.dataSource, symbol: benchmark.symbol }
+          : undefined;
+      })
+      .filter(
+        (
+          benchmark
+        ): benchmark is Pick<SymbolProfile, 'dataSource' | 'symbol'> =>
+          Boolean(benchmark)
+      );
 
-        this.dataService
-          .fetchBenchmarkForUser({
-            dataSource,
-            symbol,
-            filters: this.userService.getFilters(),
-            range: this.user?.settings?.dateRange ?? DEFAULT_DATE_RANGE,
-            startDate: this.dateOfFirstActivity
-          })
-          .pipe(takeUntilDestroyed(this.destroyRef))
-          .subscribe(({ marketData }) => {
-            this.benchmarkDataItems = marketData.map(({ date, value }) => {
-              return {
-                date,
-                value
-              };
-            });
-
-            this.isLoadingBenchmarkComparator = false;
-
-            this.changeDetectorRef.markForCheck();
-          });
-      }
+    if (
+      allocations.length === 0 ||
+      benchmarkIdentifiers.length !== allocations.length
+    ) {
+      return;
     }
+
+    this.isLoadingBenchmarkComparator = true;
+
+    forkJoin(
+      benchmarkIdentifiers.map(({ dataSource, symbol }) => {
+        return this.dataService.fetchBenchmarkForUser({
+          dataSource,
+          symbol,
+          filters: this.userService.getFilters(),
+          range: this.user?.settings?.dateRange ?? DEFAULT_DATE_RANGE,
+          startDate: this.dateOfFirstActivity
+        });
+      })
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((results) => {
+        if (requestId !== this.benchmarkDataRequestId) {
+          return;
+        }
+
+        const marketDataByBenchmark = Object.fromEntries(
+          allocations.map(({ id }, index) => [id, results[index].marketData])
+        );
+
+        this.benchmarkDataItems = calculateBlendedBenchmarkData({
+          allocations,
+          dates: this.performanceDataItemsInPercentage.map(({ date }) => date),
+          marketDataByBenchmark
+        });
+        this.isLoadingBenchmarkComparator = false;
+
+        this.changeDetectorRef.markForCheck();
+      });
   }
 }
