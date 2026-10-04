@@ -78,6 +78,7 @@ export const DATA_SOURCES_GHOSTFOLIO_DATA_PROVIDER_SETUP_PERIOD_MAX_REQUESTS_FAC
  */
 export const DATE_RANGES = [
   '1d',
+  '1m',
   '1y',
   '5y',
   'max',

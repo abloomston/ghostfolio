@@ -37,6 +37,7 @@ export class UpdateUserSettingDto {
 
   @IsIn([
     '1d',
+    '1m',
     '1y',
     '5y',
     'max',

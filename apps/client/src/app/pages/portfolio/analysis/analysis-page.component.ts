@@ -104,6 +104,17 @@ export class GfAnalysisPageComponent implements OnInit {
   protected performanceDataItems: HistoricalDataItem[];
   protected performanceDataItemsInPercentage: HistoricalDataItem[];
   protected readonly portfolioEvolutionDataLabel = $localize`Investment`;
+  protected readonly dateRangeOptions = [
+    { label: $localize`Year to date`, value: 'ytd' },
+    { label: $localize`1 month`, value: '1m' },
+    { label: $localize`1 year`, value: '1y' },
+    { label: $localize`5 years`, value: '5y' },
+    { label: $localize`All time`, value: 'max' },
+    { label: $localize`Custom range`, value: 'custom' }
+  ];
+  protected selectedDateRange = DEFAULT_DATE_RANGE;
+  protected customStartDate = '';
+  protected customEndDate = '';
   protected precision = 2;
   protected savingsRatePerMonth: number | undefined;
   protected streaks: PortfolioInvestmentsResponse['streaks'];
@@ -150,6 +161,16 @@ export class GfAnalysisPageComponent implements OnInit {
         if (state?.user) {
           this.user = state.user;
 
+          if (this.selectedDateRange !== 'custom') {
+            const userDateRange =
+              this.user.settings?.dateRange ?? DEFAULT_DATE_RANGE;
+            this.selectedDateRange = this.dateRangeOptions.some(
+              ({ value }) => value === userDateRange
+            )
+              ? userDateRange
+              : DEFAULT_DATE_RANGE;
+          }
+
           this.benchmark = this.benchmarks.find(({ id }) => {
             return id === this.user.settings?.benchmark;
           });
@@ -185,6 +206,40 @@ export class GfAnalysisPageComponent implements OnInit {
   protected onChangeGroupBy(aMode: GroupBy) {
     this.mode.set(aMode);
     this.fetchDividendsAndInvestments();
+  }
+
+  protected onDateRangeSelection(event: Event) {
+    const dateRange = (event.target as HTMLSelectElement).value;
+
+    this.selectedDateRange = dateRange;
+    this.customStartDate = '';
+    this.customEndDate = '';
+
+    if (dateRange !== 'custom') {
+      this.dataService
+        .putUserSetting({ dateRange })
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(() => {
+          this.userService
+            .get(true)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe();
+        });
+    }
+  }
+
+  protected canApplyCustomDateRange() {
+    return (
+      !!this.customStartDate &&
+      !!this.customEndDate &&
+      this.customStartDate <= this.customEndDate
+    );
+  }
+
+  protected applyCustomDateRange() {
+    if (this.canApplyCustomDateRange()) {
+      this.update(this.customStartDate, this.customEndDate);
+    }
   }
 
   protected onCopyPromptToClipboard(mode: AiPromptMode) {
@@ -312,13 +367,25 @@ export class GfAnalysisPageComponent implements OnInit {
       );
   }
 
-  private update() {
+  private update(
+    startDate = this.selectedDateRange === 'custom'
+      ? this.customStartDate || undefined
+      : undefined,
+    endDate = this.selectedDateRange === 'custom'
+      ? this.customEndDate || undefined
+      : undefined
+  ) {
     this.isLoadingInvestmentChart = true;
 
     this.dataService
       .fetchPortfolioPerformance({
+        endDate,
         filters: this.userService.getFilters(),
-        range: this.user?.settings?.dateRange ?? DEFAULT_DATE_RANGE
+        range:
+          this.selectedDateRange === 'custom'
+            ? DEFAULT_DATE_RANGE
+            : this.selectedDateRange,
+        startDate
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ chart, dateOfFirstActivity, performance }) => {
@@ -340,7 +407,7 @@ export class GfAnalysisPageComponent implements OnInit {
           }
         ] of (chart ?? []).entries()) {
           // Ignore first item where value is 0
-          if (index > 0 || this.user?.settings?.dateRange === 'max') {
+          if (index > 0 || this.selectedDateRange === 'max') {
             if (totalInvestmentValueWithCurrencyEffect !== undefined) {
               this.investments.push({
                 date,

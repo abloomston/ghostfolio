@@ -1,9 +1,17 @@
 import { DateRangeFilterDto } from '@ghostfolio/api/dtos/date-range-filter.dto';
 
 import { Transform, TransformFnParams } from 'class-transformer';
-import { IsBoolean } from 'class-validator';
+import { IsBoolean, IsDateString, IsOptional } from 'class-validator';
 
 export class GetPerformanceDto extends DateRangeFilterDto {
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
+
+  @IsDateString()
+  @IsOptional()
+  startDate?: string;
+
   @IsBoolean()
   @Transform(({ value }: TransformFnParams) => {
     return value === 'true';

@@ -23,6 +23,32 @@ describe('CalculationHelper', () => {
       // part of the interval
       expect(startDate.getTime()).toEqual(new Date(2024, 0, 1).getTime() - 1);
     });
+
+    it('Gets the interval for the previous month', () => {
+      jest.useFakeTimers().setSystemTime(new Date(2025, 4, 31, 12));
+
+      const { endDate, startDate } = getIntervalFromDateRange({
+        dateRange: '1m'
+      });
+
+      jest.useRealTimers();
+
+      expect(format(startDate, DATE_FORMAT)).toEqual('2025-04-30');
+      expect(format(endDate, DATE_FORMAT)).toEqual('2025-05-31');
+    });
+
+    it('Uses the supplied boundaries for a custom date range', () => {
+      const requestedStartDate = new Date(2024, 5, 3);
+      const requestedEndDate = new Date(2024, 5, 20);
+      const { endDate, startDate } = getIntervalFromDateRange({
+        dateRange: 'max',
+        endDate: requestedEndDate,
+        startDate: requestedStartDate
+      });
+
+      expect(startDate).toEqual(requestedStartDate);
+      expect(endDate).toEqual(requestedEndDate);
+    });
   });
 
   describe('annualized performance percentage', () => {

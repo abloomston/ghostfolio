@@ -1,5 +1,56 @@
 <div class="container">
   <h1 class="d-none d-sm-block h3 mb-3 text-center" i18n>Analysis</h1>
+
+  <div class="align-items-end mb-3 row">
+    <div class="col-md-4 col-lg-3">
+      <label class="mb-1" for="portfolio-date-range" i18n>Date range</label>
+      <select
+        class="form-control"
+        id="portfolio-date-range"
+        [value]="selectedDateRange"
+        (change)="onDateRangeSelection($event)"
+      >
+        @for (dateRange of dateRangeOptions; track dateRange.value) {
+          <option [value]="dateRange.value">{{ dateRange.label }}</option>
+        }
+      </select>
+    </div>
+    @if (selectedDateRange === 'custom') {
+      <div class="col-md-3 mt-2 mt-md-0">
+        <label class="mb-1" for="portfolio-date-range-start" i18n>From</label>
+        <input
+          class="form-control"
+          id="portfolio-date-range-start"
+          type="date"
+          [value]="customStartDate"
+          (input)="customStartDate = $any($event.target).value"
+        />
+      </div>
+      <div class="col-md-3 mt-2 mt-md-0">
+        <label class="mb-1" for="portfolio-date-range-end" i18n>To</label>
+        <input
+          class="form-control"
+          id="portfolio-date-range-end"
+          type="date"
+          [value]="customEndDate"
+          (input)="customEndDate = $any($event.target).value"
+        />
+      </div>
+      <div class="col-md-2 mt-2 mt-md-0">
+        <button
+          class="w-100"
+          color="primary"
+          i18n
+          mat-flat-button
+          [disabled]="!canApplyCustomDateRange() || isLoadingInvestmentChart"
+          (click)="applyCustomDateRange()"
+        >
+          Apply
+        </button>
+      </div>
+    }
+  </div>
+
   @if (user?.settings?.isExperimentalFeatures) {
     <div class="mb-3 row">
       <div class="col-lg">
