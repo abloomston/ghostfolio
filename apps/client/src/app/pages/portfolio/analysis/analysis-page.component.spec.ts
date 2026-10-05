@@ -1,5 +1,6 @@
 import { UserService } from '@ghostfolio/client/services/user/user.service';
 import { parseDate } from '@ghostfolio/common/helper';
+import { User } from '@ghostfolio/common/interfaces';
 import { DataService } from '@ghostfolio/ui/services';
 
 import { Clipboard } from '@angular/cdk/clipboard';
@@ -7,6 +8,7 @@ import { TestBed } from '@angular/core/testing';
 import '@angular/localize/init';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { DeviceDetectorService } from 'ngx-device-detector';
+import { of, Subject } from 'rxjs';
 
 import { GfAnalysisPageComponent } from './analysis-page.component';
 
@@ -66,11 +68,33 @@ describe('GfAnalysisPageComponent', () => {
           provide: DataService,
           useValue: dataService
         },
-        { provide: UserService, useValue: { getFilters: jest.fn() } }
+        {
+          provide: UserService,
+          useValue: { getFilters: jest.fn(), stateChanged: of() }
+        }
       ]
     })
       .overrideComponent(GfAnalysisPageComponent, {
-        set: { imports: [], template: '' }
+        set: {
+          // Focused on the date range dropdown so that change detection
+          // exercises the exact mechanism that selects the initial value of
+          // the native <select>
+          imports: [],
+          template: `
+            <select
+              id="portfolio-date-range"
+              [value]="selectedDateRange"
+              (change)="onDateRangeSelection($event)"
+            >
+              <option value="ytd">Year to date</option>
+              <option value="1m">1 month</option>
+              <option value="1y">1 year</option>
+              <option value="5y">5 years</option>
+              <option value="max">All time</option>
+              <option value="custom">Custom range</option>
+            </select>
+          `
+        }
       })
       .compileComponents();
   });
@@ -118,5 +142,70 @@ describe('GfAnalysisPageComponent', () => {
     component['dividendsByGroup'] = [];
 
     expect(component.getTimeAxisDomain()).toBeUndefined();
+  });
+
+  it('initially reflects the selected date range in the dropdown', () => {
+    const componentFixture = TestBed.createComponent(GfAnalysisPageComponent);
+
+    componentFixture.detectChanges();
+
+    const select = componentFixture.nativeElement.querySelector(
+      '#portfolio-date-range'
+    );
+
+    expect(componentFixture.componentInstance['selectedDateRange']).toBe('max');
+    expect(select.value).toBe(
+      componentFixture.componentInstance['selectedDateRange']
+    );
+  });
+
+  it('reflects the user date range setting once the user state arrives', () => {
+    const user = {
+      permissions: [],
+      scopes: [],
+      settings: { dateRange: '5y' }
+    } as User;
+
+    const stateChanged = new Subject<{ user: User }>();
+    (TestBed.inject(UserService) as any).stateChanged =
+      stateChanged.asObservable();
+
+    dataService.fetchPortfolioPerformance.mockReturnValue(
+      of({ chart: [], performance: { currentValueInBaseCurrency: 0 } } as never)
+    );
+    dataService.fetchPortfolioHoldings.mockReturnValue(
+      of({ holdings: [] } as never)
+    );
+    dataService.fetchDividends.mockReturnValue(
+      of({
+        dividends: [],
+        investments: [],
+        savingsRate: undefined,
+        streaks: undefined
+      } as never)
+    );
+    dataService.fetchInvestments.mockReturnValue(
+      of({
+        dividends: [],
+        investments: [],
+        savingsRate: undefined,
+        streaks: undefined
+      } as never)
+    );
+
+    const componentFixture = TestBed.createComponent(GfAnalysisPageComponent);
+
+    componentFixture.detectChanges();
+
+    const select = componentFixture.nativeElement.querySelector(
+      '#portfolio-date-range'
+    );
+
+    stateChanged.next({ user });
+
+    componentFixture.detectChanges();
+
+    expect(componentFixture.componentInstance['selectedDateRange']).toBe('5y');
+    expect(select.value).toBe('5y');
   });
 });
