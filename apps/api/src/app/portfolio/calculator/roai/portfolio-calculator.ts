@@ -346,7 +346,11 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
       totalDividendInBaseCurrency,
       totalInterestInBaseCurrency,
       totalLiabilitiesInBaseCurrency
-    } = this.getTotalsFromActivities({ activities, exchangeRates });
+    } = this.getTotalsFromActivities({
+      activities,
+      asOfDate: end,
+      exchangeRates
+    });
 
     const dateOfFirstActivity = parseDate(activities[0].date);
 

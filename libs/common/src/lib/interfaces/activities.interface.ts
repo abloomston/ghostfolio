@@ -3,7 +3,19 @@ import { AccountWithPlatform } from '@ghostfolio/common/types';
 
 import { Order, Tag } from '@prisma/client';
 
-export interface Activity extends Order {
+export interface Activity extends Omit<
+  Order,
+  | 'mortgageInterestRate'
+  | 'mortgageStartDate'
+  | 'mortgageTermYears'
+  | 'propertyValue'
+> {
+  // Optional on an Activity; only set on LIABILITY activities that carry a
+  // fixed-rate mortgage (or a secured property).
+  mortgageInterestRate?: number | null;
+  mortgageStartDate?: Date | null;
+  mortgageTermYears?: number | null;
+  propertyValue?: number | null;
   account?: AccountWithPlatform;
   assetProfile: EnhancedAssetProfile;
   error?: ActivityError;

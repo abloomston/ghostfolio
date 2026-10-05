@@ -107,6 +107,7 @@ describe('PortfolioCalculator', () => {
             symbol: activity.symbol
           },
           date: parseDate(activity.date),
+          mortgageStartDate: undefined,
           feeInAssetProfileCurrency: 4.46,
           feeInBaseCurrency: 4.46,
           unitPriceInAssetProfileCurrency: 44558.42

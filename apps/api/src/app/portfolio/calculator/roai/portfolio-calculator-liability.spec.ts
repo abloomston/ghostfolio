@@ -82,7 +82,7 @@ describe('PortfolioCalculator', () => {
   });
 
   describe('compute portfolio snapshot', () => {
-    it.only('with liability activity', async () => {
+    it('with liability activity', async () => {
       jest.useFakeTimers().setSystemTime(parseDate('2022-01-31').getTime());
 
       const activities: Activity[] = [
@@ -115,6 +115,47 @@ describe('PortfolioCalculator', () => {
 
       expect(portfolioSnapshot.totalLiabilitiesWithCurrencyEffect).toEqual(
         new Big(3000)
+      );
+    });
+
+    it('counts a mortgage liability at its outstanding balance', async () => {
+      // Analysis date 2023-05-31; the loan started 2021-01-01, so 28
+      // installments are due and the outstanding principal is $289,318.35.
+      jest.useFakeTimers().setSystemTime(parseDate('2023-05-31').getTime());
+
+      const activities: Activity[] = [
+        {
+          ...activityDummyData,
+          assetProfile: {
+            ...assetProfileDummyData,
+            currency: 'USD',
+            dataSource: 'MANUAL',
+            name: 'Mortgage',
+            symbol: 'b5196015-1365-4560-aa60-8751ae6d18f9'
+          },
+          date: new Date('2021-01-01'),
+          feeInAssetProfileCurrency: 0,
+          feeInBaseCurrency: 0,
+          mortgageInterestRate: 5,
+          mortgageStartDate: new Date('2021-01-01'),
+          mortgageTermYears: 30,
+          quantity: 1,
+          type: 'LIABILITY',
+          unitPriceInAssetProfileCurrency: 300000
+        }
+      ];
+
+      const portfolioCalculator = portfolioCalculatorFactory.createCalculator({
+        activities,
+        calculationType: PerformanceCalculationType.ROAI,
+        currency: 'USD',
+        userId: userDummyData.id
+      });
+
+      const portfolioSnapshot = await portfolioCalculator.computeSnapshot();
+
+      expect(portfolioSnapshot.totalLiabilitiesWithCurrencyEffect).toEqual(
+        new Big(289318.35)
       );
     });
   });

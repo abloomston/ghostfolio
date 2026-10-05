@@ -918,12 +918,14 @@ describe('PortfolioService', () => {
       } as unknown as Activity;
     }
 
-    function createPortfolioCalculator() {
+    function createPortfolioCalculator({ liabilities = 0 } = {}) {
       return {
         getDividendInBaseCurrency: jest.fn().mockResolvedValue(new Big(0)),
         getFeesInBaseCurrency: jest.fn().mockResolvedValue(new Big(0)),
         getInterestInBaseCurrency: jest.fn().mockResolvedValue(new Big(0)),
-        getLiabilitiesInBaseCurrency: jest.fn().mockResolvedValue(new Big(0)),
+        getLiabilitiesInBaseCurrency: jest
+          .fn()
+          .mockResolvedValue(new Big(liabilities)),
         getSnapshot: jest.fn().mockResolvedValue({
           currentValueInBaseCurrency: new Big(3000),
           totalCashInBaseCurrency: new Big(1000),
@@ -984,7 +986,26 @@ describe('PortfolioService', () => {
       expect(summary.emergencyFund.total).toBe(0);
       expect(summary.excludedAccountsAndActivities).toBe(0);
       expect(summary.totalAssetsInBaseCurrency).toBe(3000);
+      expect(summary.fireWealth.today.valueInBaseCurrency).toBe(3000);
       expect(summary.totalValueInBaseCurrency).toBe(3000);
+    });
+
+    it('should subtract mortgage liabilities from FIRE wealth', async () => {
+      jest.spyOn(accountService, 'getCashDetails').mockResolvedValue({
+        accounts: [],
+        balanceInBaseCurrency: 1000
+      });
+
+      const summary = await getSummary({
+        portfolioCalculator: createPortfolioCalculator({ liabilities: 750 }),
+        balanceInBaseCurrency: 1000,
+        emergencyFundHoldingsValueInBaseCurrency: 0,
+        filteredValueInBaseCurrency: new Big(3000),
+        userCurrency: 'CHF',
+        userId: userDummyData.id
+      });
+
+      expect(summary.fireWealth.today.valueInBaseCurrency).toBe(2250);
     });
 
     it('should value the open holdings of excluded accounts at the current market price', async () => {

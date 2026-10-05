@@ -107,6 +107,7 @@ describe('PortfolioCalculator', () => {
             symbol: activity.symbol
           },
           date: parseDate(activity.date),
+          mortgageStartDate: undefined,
           feeInAssetProfileCurrency: activity.fee,
           feeInBaseCurrency: activity.fee,
           unitPriceInAssetProfileCurrency: activity.unitPrice

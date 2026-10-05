@@ -12,6 +12,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsISO8601,
   IsNumber,
   IsOptional,
@@ -61,6 +62,25 @@ export class CreateOrderDto {
   @IsNumber()
   @Min(0)
   fee: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  mortgageInterestRate?: number;
+
+  @IsOptional()
+  @IsISO8601()
+  @Validate(IsAfter1970Constraint)
+  mortgageStartDate?: string;
+
+  @IsOptional()
+  @IsIn([15, 30])
+  mortgageTermYears?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  propertyValue?: number;
 
   @IsNumber()
   @Min(0)

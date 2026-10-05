@@ -843,6 +843,10 @@ export class ImportService {
       const date = activity.date;
       const error = activity.error;
       const fee = activity.fee;
+      const mortgageInterestRate = activity.mortgageInterestRate;
+      const mortgageStartDate = activity.mortgageStartDate;
+      const mortgageTermYears = activity.mortgageTermYears;
+      const propertyValue = activity.propertyValue;
       const quantity = activity.quantity;
       const tagIds = activity.tagIds ?? [];
       const type = activity.type;
@@ -911,6 +915,10 @@ export class ImportService {
           quantity,
           type,
           unitPrice,
+          mortgageInterestRate,
+          mortgageStartDate,
+          mortgageTermYears,
+          propertyValue,
           account: validatedAccount,
           accountId: validatedAccount?.id,
           accountUserId: undefined,
@@ -961,6 +969,10 @@ export class ImportService {
           quantity,
           type,
           unitPrice,
+          mortgageInterestRate,
+          mortgageStartDate,
+          mortgageTermYears,
+          propertyValue,
           accountId: validatedAccount?.id,
           SymbolProfile: {
             connectOrCreate: {
@@ -1066,6 +1078,10 @@ export class ImportService {
         dataSource,
         date: dateString,
         fee,
+        mortgageInterestRate,
+        mortgageStartDate: mortgageStartDateString,
+        mortgageTermYears,
+        propertyValue,
         quantity,
         symbol,
         tags,
@@ -1073,6 +1089,9 @@ export class ImportService {
         unitPrice
       }) => {
         const date = parseISO(dateString);
+        const mortgageStartDate = mortgageStartDateString
+          ? parseISO(mortgageStartDateString)
+          : undefined;
 
         const isDuplicate = existingActivities.some((activity) => {
           return (
@@ -1100,6 +1119,10 @@ export class ImportService {
           date,
           error,
           fee,
+          mortgageInterestRate,
+          mortgageStartDate,
+          mortgageTermYears,
+          propertyValue,
           quantity,
           type,
           unitPrice,
