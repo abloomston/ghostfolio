@@ -63,6 +63,7 @@ export class GfInvestmentChartComponent implements OnChanges, OnDestroy {
   @Input() public isLoading = false;
   @Input() public locale = getLocale();
   @Input() public savingsRate = 0;
+  @Input() public timeAxisDomain: { max: number; min: number } | undefined;
 
   private readonly chartCanvas =
     viewChild.required<ElementRef<HTMLCanvasElement>>('chartCanvas');
@@ -162,6 +163,10 @@ export class GfInvestmentChartComponent implements OnChanges, OnDestroy {
         this.chart.options.plugins.tooltip =
           this.getTooltipPluginConfiguration();
 
+        // Keep the time (x) axis aligned with the other charts on the page
+        this.chart.options.scales.x.min = this.timeAxisDomain?.min;
+        this.chart.options.scales.x.max = this.timeAxisDomain?.max;
+
         const annotations = this.chart.options.plugins.annotation
           ?.annotations as Record<string, AnnotationOptions<'line'>>;
         if (this.savingsRate && annotations.savingsRate) {
@@ -217,11 +222,15 @@ export class GfInvestmentChartComponent implements OnChanges, OnDestroy {
               },
               responsive: true,
               scales: {
-                x: getTimeAxisOptions({
-                  borderWidth: this.groupBy ? 0 : 1,
-                  colorScheme: this.colorScheme,
-                  locale: this.locale
-                }),
+                x: {
+                  ...getTimeAxisOptions({
+                    borderWidth: this.groupBy ? 0 : 1,
+                    colorScheme: this.colorScheme,
+                    locale: this.locale
+                  }),
+                  max: this.timeAxisDomain?.max,
+                  min: this.timeAxisDomain?.min
+                },
                 y: getValueAxisOptions({
                   colorScheme: this.colorScheme,
                   display: !this.isInPercentage,
