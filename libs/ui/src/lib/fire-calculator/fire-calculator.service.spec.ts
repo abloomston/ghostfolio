@@ -15,6 +15,72 @@ describe('FireCalculatorService', () => {
     );
   });
 
+  describe('Historical portfolio returns', () => {
+    it('should calculate annualized returns from historical prices', () => {
+      const asOf = new Date('2025-01-01T00:00:00.000Z');
+      const periodInDays =
+        (asOf.getTime() - new Date('2020-01-01T00:00:00.000Z').getTime()) /
+        (24 * 60 * 60 * 1000);
+      const currentPrice = 100 * Math.pow(1.08, periodInDays / 365.25);
+
+      const annualizedReturn =
+        fireCalculatorService.calculateAnnualizedReturnFromHistory({
+          asOf,
+          currentPrice,
+          history: [
+            { date: '2020-01-01T00:00:00.000Z', marketPrice: 100 },
+            { date: '2022-01-01T00:00:00.000Z', marketPrice: 120 }
+          ],
+          years: 5
+        });
+
+      expect(annualizedReturn).toBeCloseTo(8, 10);
+    });
+
+    it('should return no estimate when the history does not cover the requested period', () => {
+      const annualizedReturn =
+        fireCalculatorService.calculateAnnualizedReturnFromHistory({
+          asOf: new Date('2025-01-01T00:00:00.000Z'),
+          currentPrice: 120,
+          history: [{ date: '2021-01-01T00:00:00.000Z', marketPrice: 100 }],
+          years: 5
+        });
+
+      expect(annualizedReturn).toBeUndefined();
+    });
+
+    it('should weight asset returns by their share of the portfolio', () => {
+      const annualizedReturn =
+        fireCalculatorService.calculateWeightedPortfolioReturn([
+          { value: 60, annualizedReturn: 8 },
+          { value: 30, annualizedReturn: 2 },
+          { value: 10, annualizedReturn: 4 }
+        ]);
+
+      expect(annualizedReturn).toBeCloseTo(5.8, 10);
+    });
+
+    it('should ignore zero-value assets when calculating the weighted return', () => {
+      const annualizedReturn =
+        fireCalculatorService.calculateWeightedPortfolioReturn([
+          { value: 100, annualizedReturn: 5 },
+          { value: 0, annualizedReturn: undefined }
+        ]);
+
+      expect(annualizedReturn).toBe(5);
+    });
+
+    it('should not suggest a portfolio return when a holding has no historical return', () => {
+      const annualizedReturn =
+        fireCalculatorService.calculateWeightedPortfolioReturn([
+          { value: 75, annualizedReturn: 8 },
+          { value: 25, annualizedReturn: undefined }
+        ]);
+
+      expect(annualizedReturn).toBeUndefined();
+    });
+  });
+
   describe('Present value', () => {
     it('should deflate a future amount by the expected inflation rate', () => {
       const futureAmount = fireCalculatorService.calculateCompoundInterest({

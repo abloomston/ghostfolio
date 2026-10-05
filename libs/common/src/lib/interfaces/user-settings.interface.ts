@@ -13,6 +13,7 @@ export interface UserSettings {
   annualInterestRate?: number;
   baseCurrency?: string;
   benchmark?: string;
+  cashInterestRate?: number;
   colorScheme?: ColorScheme;
   dateRange?: DateRange;
   emergencyFund?: number;

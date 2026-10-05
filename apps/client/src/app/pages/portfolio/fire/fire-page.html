@@ -1,4 +1,141 @@
 <div class="container">
+  @if (expectedReturnAssetsValue > 0) {
+    <section class="mb-5">
+      <h4 class="align-items-center d-flex mb-2" i18n>
+        Historical portfolio returns
+      </h4>
+      <p class="text-muted" i18n>
+        Annualized historical returns are weighted by each asset’s share of your
+        current portfolio. Use an estimate to set the expected annual return in
+        the calculator.
+      </p>
+      <div class="mb-3">
+        <label class="mr-2" for="cash-interest-rate" i18n
+          >Interest rate for cash</label
+        >
+        <input
+          class="form-control d-inline-block"
+          id="cash-interest-rate"
+          max="100"
+          min="-100"
+          step="0.25"
+          style="max-width: 8rem"
+          type="number"
+          [formControl]="cashInterestRateControl"
+        />
+        <span class="ml-2">%</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th i18n>Asset</th>
+              <th class="text-right" i18n>Portfolio composition</th>
+              <th class="text-right" i18n>5-year average annual return</th>
+              <th class="text-right" i18n>10-year average annual return</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (asset of expectedReturnAssets; track asset.id) {
+              <tr>
+                <td>{{ asset.name }}</td>
+                <td class="text-right">
+                  <gf-value
+                    [isPercent]="true"
+                    [locale]="user?.settings?.locale"
+                    [precision]="1"
+                    [value]="asset.value / expectedReturnAssetsValue"
+                  />
+                </td>
+                <td class="text-right">
+                  @if (asset.isCash) {
+                    <gf-value
+                      [isPercent]="true"
+                      [locale]="user?.settings?.locale"
+                      [precision]="2"
+                      [value]="cashInterestRate / 100"
+                    />
+                  } @else if (asset.fiveYearReturn !== undefined) {
+                    <gf-value
+                      [isPercent]="true"
+                      [locale]="user?.settings?.locale"
+                      [precision]="2"
+                      [value]="asset.fiveYearReturn / 100"
+                    />
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td class="text-right">
+                  @if (asset.isCash) {
+                    <gf-value
+                      [isPercent]="true"
+                      [locale]="user?.settings?.locale"
+                      [precision]="2"
+                      [value]="cashInterestRate / 100"
+                    />
+                  } @else if (asset.tenYearReturn !== undefined) {
+                    <gf-value
+                      [isPercent]="true"
+                      [locale]="user?.settings?.locale"
+                      [precision]="2"
+                      [value]="asset.tenYearReturn / 100"
+                    />
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="d-flex flex-wrap align-items-center">
+        <span class="mr-2" i18n>Suggested expected annual return:</span>
+        @if (expectedReturnEstimates.fiveYear !== undefined) {
+          <button
+            class="btn btn-sm btn-outline-primary mr-2 mb-2"
+            type="button"
+            [disabled]="!hasPermissionToUpdateUserSettings"
+            (click)="onExpectedReturnChange(expectedReturnEstimates.fiveYear)"
+          >
+            <ng-container i18n>Use 5-year estimate</ng-container>
+            (<gf-value
+              [isPercent]="true"
+              [locale]="user?.settings?.locale"
+              [precision]="2"
+              [value]="expectedReturnEstimates.fiveYear / 100"
+            />)
+          </button>
+        }
+        @if (expectedReturnEstimates.tenYear !== undefined) {
+          <button
+            class="btn btn-sm btn-outline-primary mb-2"
+            type="button"
+            [disabled]="!hasPermissionToUpdateUserSettings"
+            (click)="onExpectedReturnChange(expectedReturnEstimates.tenYear)"
+          >
+            <ng-container i18n>Use 10-year estimate</ng-container>
+            (<gf-value
+              [isPercent]="true"
+              [locale]="user?.settings?.locale"
+              [precision]="2"
+              [value]="expectedReturnEstimates.tenYear / 100"
+            />)
+          </button>
+        }
+        @if (
+          expectedReturnEstimates.fiveYear === undefined &&
+          expectedReturnEstimates.tenYear === undefined
+        ) {
+          <span class="text-muted" i18n
+            >An estimate is unavailable when an asset does not have enough
+            historical data.</span
+          >
+        }
+      </div>
+    </section>
+  }
   <div class="row mb-5">
     <div class="col-lg">
       <h2 class="d-none d-sm-block h3 mb-3 text-center" i18n>FIRE</h2>
