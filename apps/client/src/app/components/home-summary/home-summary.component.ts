@@ -17,12 +17,13 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { DeviceDetectorService } from 'ngx-device-detector';
 import { switchMap } from 'rxjs';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GfPortfolioSummaryComponent, MatCardModule],
+  imports: [GfPortfolioSummaryComponent, MatCardModule, MatCheckboxModule],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   selector: 'gf-home-summary',
   styleUrls: ['./home-summary.scss'],
@@ -30,6 +31,7 @@ import { switchMap } from 'rxjs';
 })
 export class GfHomeSummaryComponent implements OnInit {
   protected readonly hasImpersonationId = signal<boolean>(false);
+  protected readonly includeCash = signal<boolean>(true);
   protected readonly isLoading = signal(true);
   protected readonly summary = signal<PortfolioSummary | undefined>(undefined);
   protected readonly user = signal<User | undefined>(undefined);
@@ -86,11 +88,17 @@ export class GfHomeSummaryComponent implements OnInit {
       });
   }
 
+  protected onChangeIncludeCash(includeCash: boolean) {
+    this.includeCash.set(includeCash);
+
+    this.update();
+  }
+
   private update() {
     this.isLoading.set(true);
 
     this.dataService
-      .fetchPortfolioDetails()
+      .fetchPortfolioDetails({ includeCash: this.includeCash() })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ summary }) => {
         if (summary) {

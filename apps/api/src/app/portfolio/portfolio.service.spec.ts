@@ -437,6 +437,10 @@ describe('PortfolioService', () => {
       jest
         .spyOn(portfolioCalculatorFactory, 'createCalculator')
         .mockReturnValue({
+          getDividendInBaseCurrency: jest.fn().mockResolvedValue(new Big(0)),
+          getFeesInBaseCurrency: jest.fn().mockResolvedValue(new Big(0)),
+          getInterestInBaseCurrency: jest.fn().mockResolvedValue(new Big(0)),
+          getLiabilitiesInBaseCurrency: jest.fn().mockResolvedValue(new Big(0)),
           getSnapshot: jest.fn().mockResolvedValue({
             activitiesCount: 1,
             createdAt: parseDate('2024-01-01'),
@@ -445,12 +449,14 @@ describe('PortfolioService', () => {
             hasErrors: false,
             historicalData: [],
             positions: [usdPosition],
+            totalCashInBaseCurrency: new Big(0),
             totalFeesWithCurrencyEffect: new Big(0),
             totalInterestWithCurrencyEffect: new Big(0),
             totalInvestment: new Big(1820),
             totalInvestmentWithCurrencyEffect: new Big(1820),
             totalLiabilitiesWithCurrencyEffect: new Big(0)
-          })
+          }),
+          getStartDate: jest.fn().mockReturnValue(parseDate('2024-01-01'))
         } as unknown as ReturnType<
           typeof portfolioCalculatorFactory.createCalculator
         >);
@@ -508,6 +514,61 @@ describe('PortfolioService', () => {
           valueInBaseCurrency: 3640
         })
       );
+    });
+
+    it('should include the account cash balance in the summary totals when cash is included', async () => {
+      setUpCashOnlyPortfolio();
+      jest
+        .spyOn(exchangeRateDataService, 'toCurrency')
+        .mockImplementation((value, fromCurrency, toCurrency) => {
+          return fromCurrency === toCurrency ? value : value * 0.91;
+        });
+      jest.spyOn(portfolioService, 'getPerformance').mockResolvedValue({
+        performance: {
+          currentValueInBaseCurrency: 1820,
+          netPerformance: 0,
+          netPerformancePercentage: 0,
+          netPerformancePercentageWithCurrencyEffect: 0,
+          netPerformanceWithCurrencyEffect: 0
+        }
+      } as Awaited<ReturnType<typeof portfolioService.getPerformance>>);
+
+      const { summary } = await portfolioService.getDetails({
+        filters: [],
+        includeCash: true,
+        userId: userDummyData.id,
+        withSummary: true
+      });
+
+      expect(summary?.totalAssetsInBaseCurrency).toBe(3640);
+      expect(summary?.totalValueInBaseCurrency).toBe(3640);
+    });
+
+    it('should keep the account cash balance out of the summary totals by default', async () => {
+      setUpCashOnlyPortfolio();
+      jest
+        .spyOn(exchangeRateDataService, 'toCurrency')
+        .mockImplementation((value, fromCurrency, toCurrency) => {
+          return fromCurrency === toCurrency ? value : value * 0.91;
+        });
+      jest.spyOn(portfolioService, 'getPerformance').mockResolvedValue({
+        performance: {
+          currentValueInBaseCurrency: 1820,
+          netPerformance: 0,
+          netPerformancePercentage: 0,
+          netPerformancePercentageWithCurrencyEffect: 0,
+          netPerformanceWithCurrencyEffect: 0
+        }
+      } as Awaited<ReturnType<typeof portfolioService.getPerformance>>);
+
+      const { summary } = await portfolioService.getDetails({
+        filters: [],
+        userId: userDummyData.id,
+        withSummary: true
+      });
+
+      expect(summary?.totalAssetsInBaseCurrency).toBe(1820);
+      expect(summary?.totalValueInBaseCurrency).toBe(1820);
     });
 
     it('should replace the existing cash holding instead of adding a second one when filtering by the emergency fund tag', async () => {

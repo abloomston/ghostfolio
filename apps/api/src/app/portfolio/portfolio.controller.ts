@@ -81,6 +81,7 @@ export class PortfolioController {
       accounts: filterByAccounts,
       assetClasses: filterByAssetClasses,
       dataSource: filterByDataSource,
+      includeCash,
       range,
       symbol: filterBySymbol,
       tags: filterByTags,
@@ -116,6 +117,7 @@ export class PortfolioController {
       filters,
       userId,
       withMarkets,
+      includeCash,
       dateRange: range,
       withSummary: true
     });

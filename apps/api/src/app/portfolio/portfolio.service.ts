@@ -930,6 +930,17 @@ export class PortfolioService {
             holdings
           })
       });
+
+      if (includeCash) {
+        const cashBalanceInBaseCurrency = new Big(
+          cashDetails.balanceInBaseCurrency
+        );
+
+        summary.totalAssetsInBaseCurrency +=
+          cashBalanceInBaseCurrency.toNumber();
+        summary.totalValueInBaseCurrency +=
+          cashBalanceInBaseCurrency.toNumber();
+      }
     }
 
     return {

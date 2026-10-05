@@ -632,12 +632,18 @@ export class DataService {
 
   public fetchPortfolioDetails({
     filters,
+    includeCash,
     withMarkets = false
   }: {
     filters?: Filter[];
+    includeCash?: boolean;
     withMarkets?: boolean;
   } = {}): Observable<PortfolioDetails> {
     let params = this.buildFiltersAsQueryParams({ filters });
+
+    if (includeCash !== undefined) {
+      params = params.append('includeCash', includeCash);
+    }
 
     if (withMarkets) {
       params = params.append('withMarkets', withMarkets);
