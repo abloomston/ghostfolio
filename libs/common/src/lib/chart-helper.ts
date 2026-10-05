@@ -21,6 +21,7 @@ import {
   getBackgroundColor,
   getDateFormatString,
   getLocale,
+  parseDate,
   getTextColor
 } from './helper';
 import { ColorScheme, GroupBy } from './types';
@@ -165,6 +166,33 @@ export function getTooltipPositionerMapTop(
   return {
     x: position.x,
     y: chart.chartArea.top
+  };
+}
+
+/**
+ * Returns the smallest time axis domain that contains all of the given dates.
+ *
+ * Passing the returned `min`/`max` to each of the stacked time series charts
+ * on the portfolio analysis view aligns their time (x) axes: the same date is
+ * rendered at the same horizontal position in every chart.
+ */
+export function getTimeAxisDomain(
+  dates: (string | undefined | null)[]
+): { max: number; min: number } | undefined {
+  const timestamps = dates
+    .map((date) => (date ? parseDate(date)?.getTime() : undefined))
+    .filter(
+      (timestamp): timestamp is number =>
+        timestamp !== undefined && !Number.isNaN(timestamp)
+    );
+
+  if (timestamps.length === 0) {
+    return undefined;
+  }
+
+  return {
+    max: Math.max(...timestamps),
+    min: Math.min(...timestamps)
   };
 }
 

@@ -1,6 +1,7 @@
 import { GfBenchmarkComparatorComponent } from '@ghostfolio/client/components/benchmark-comparator/benchmark-comparator.component';
 import { GfInvestmentChartComponent } from '@ghostfolio/client/components/investment-chart/investment-chart.component';
 import { UserService } from '@ghostfolio/client/services/user/user.service';
+import { getTimeAxisDomain } from '@ghostfolio/common/chart-helper';
 import {
   DEFAULT_DATE_RANGE,
   NUMERICAL_PRECISION_THRESHOLD_6_FIGURES
@@ -290,6 +291,21 @@ export class GfAnalysisPageComponent implements OnInit {
       !hasScope(this.user?.scopes, scopes.portfolioReadValues) ||
       this.user?.settings?.isRestrictedView
     );
+  }
+
+  /**
+   * Returns the time (x) axis domain shared by all of the stacked time series
+   * charts so that the same date is rendered at the same horizontal position
+   * in every chart (Portfolio Evolution, Investment Timeline, Dividend
+   * Timeline)
+   */
+  protected getTimeAxisDomain() {
+    return getTimeAxisDomain([
+      ...this.investments.map(({ date }) => date),
+      ...this.performanceDataItems.map(({ date }) => date),
+      ...this.investmentsByGroup.map(({ date }) => date),
+      ...this.dividendsByGroup.map(({ date }) => date)
+    ]);
   }
 
   private fetchDividendsAndInvestments() {
