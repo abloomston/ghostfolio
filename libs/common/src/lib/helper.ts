@@ -86,6 +86,7 @@ const USER_SETTINGS_KEYS_OF_AUTHENTICATED_USER: (keyof UserSettings)[] = [
   'isRestrictedView',
   'language',
   'locale',
+  'overviewChartMode',
   'viewMode'
 ];
 

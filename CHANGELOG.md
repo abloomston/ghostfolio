@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the dividend performance to the analysis page (experimental)
 - Added the option to derive market prices of manual tickers from a Yahoo Finance ticker and beta
 
+### Added
+
+- Added a toggle to switch between the performance chart and the net worth chart on the home page
+
 ### Changed
 
 - Simplified the portfolio summary by hiding the currency on mobile
