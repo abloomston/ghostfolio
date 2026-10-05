@@ -10,9 +10,12 @@
         [value]="selectedDateRange"
         (change)="onDateRangeSelection($event)"
       >
-        @for (dateRange of dateRangeOptions; track dateRange.value) {
-          <option [value]="dateRange.value">{{ dateRange.label }}</option>
-        }
+        <option i18n value="ytd">Year to date</option>
+        <option i18n value="1m">1 month</option>
+        <option i18n value="1y">1 year</option>
+        <option i18n value="5y">5 years</option>
+        <option i18n value="max">All time</option>
+        <option i18n value="custom">Custom range</option>
       </select>
     </div>
     @if (selectedDateRange === 'custom') {
