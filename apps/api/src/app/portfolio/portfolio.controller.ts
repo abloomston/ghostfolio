@@ -499,6 +499,7 @@ export class PortfolioController {
       accounts,
       assetClasses,
       dataSource,
+      includeCash,
       range,
       startDate,
       endDate,
@@ -519,6 +520,7 @@ export class PortfolioController {
       endDate,
       filters,
       userId,
+      includeCash,
       withExcludedAccounts,
       dateRange: range,
       startDate

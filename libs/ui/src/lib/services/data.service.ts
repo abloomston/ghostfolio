@@ -741,18 +741,24 @@ export class DataService {
   public fetchPortfolioPerformance({
     endDate,
     filters,
+    includeCash,
     range,
     startDate,
     withExcludedAccounts = false
   }: {
     endDate?: string;
     filters?: Filter[];
+    includeCash?: boolean;
     range: DateRange;
     startDate?: string;
     withExcludedAccounts?: boolean;
   }): Observable<PortfolioPerformanceResponse> {
     let params = this.buildFiltersAsQueryParams({ filters });
     params = params.append('range', range);
+
+    if (includeCash !== undefined) {
+      params = params.append('includeCash', includeCash);
+    }
 
     if (startDate) {
       params = params.append('startDate', startDate);

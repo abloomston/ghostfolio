@@ -34,6 +34,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { Router, RouterModule } from '@angular/router';
 import { DeviceDetectorService } from 'ngx-device-detector';
 
@@ -45,6 +46,7 @@ import { DeviceDetectorService } from 'ngx-device-detector';
     GfPortfolioPerformanceComponent,
     MatButtonModule,
     MatCardModule,
+    MatCheckboxModule,
     RouterModule
   ],
   selector: 'gf-home-overview',
@@ -59,6 +61,7 @@ export class GfHomeOverviewComponent implements OnInit {
   protected readonly holdings = signal<PortfolioPosition[] | undefined>(
     undefined
   );
+  protected readonly includeCash = signal<boolean>(true);
   protected readonly isLoadingPerformance = signal(true);
   protected readonly performance = signal<PortfolioPerformance | null>(null);
   protected readonly performanceLabel = $localize`Performance`;
@@ -152,6 +155,12 @@ export class GfHomeOverviewComponent implements OnInit {
     }
   }
 
+  protected onChangeIncludeCash(includeCash: boolean) {
+    this.includeCash.set(includeCash);
+
+    this.update();
+  }
+
   private update() {
     this.historicalDataItems.set(null);
     this.isLoadingPerformance.set(true);
@@ -162,6 +171,7 @@ export class GfHomeOverviewComponent implements OnInit {
       this.dataService
         .fetchPortfolioHoldings({
           filters: [{ id: 'ACTIVE', type: 'HOLDING_TYPE' }],
+          includeCash: this.includeCash(),
           range: this.user()?.settings?.dateRange
         })
         .pipe(takeUntilDestroyed(this.destroyRef))
@@ -172,6 +182,7 @@ export class GfHomeOverviewComponent implements OnInit {
 
     this.dataService
       .fetchPortfolioPerformance({
+        includeCash: this.includeCash(),
         range: this.user()?.settings?.dateRange ?? DEFAULT_DATE_RANGE
       })
       .pipe(takeUntilDestroyed(this.destroyRef))

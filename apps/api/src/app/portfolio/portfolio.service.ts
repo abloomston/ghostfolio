@@ -1251,12 +1251,14 @@ export class PortfolioService {
     dateRange = DEFAULT_DATE_RANGE,
     endDate: endDateString,
     filters,
+    includeCash = false,
     startDate: startDateString,
     userId
   }: {
     dateRange?: DateRange;
     endDate?: string;
     filters?: Filter[];
+    includeCash?: boolean;
     startDate?: string;
     userId: string;
     withExcludedAccounts?: boolean;
@@ -1344,6 +1346,18 @@ export class PortfolioService {
       valueWithCurrencyEffect: 0
     };
 
+    let currentValueInBaseCurrency = valueWithCurrencyEffect;
+
+    if (includeCash) {
+      const cashDetails = await this.accountService.getCashDetails({
+        filters,
+        currency: userCurrency,
+        userId
+      });
+
+      currentValueInBaseCurrency += cashDetails.balanceInBaseCurrency;
+    }
+
     return {
       chart,
       errors,
@@ -1356,7 +1370,7 @@ export class PortfolioService {
         totalInvestment,
         totalInvestmentValueWithCurrencyEffect,
         currentNetWorth: netWorth,
-        currentValueInBaseCurrency: valueWithCurrencyEffect,
+        currentValueInBaseCurrency,
         dividendPercentageWithCurrencyEffect:
           dividendInPercentageWithCurrencyEffect,
         netPerformancePercentage: netPerformanceInPercentage,

@@ -641,6 +641,85 @@ describe('PortfolioService', () => {
     });
   });
 
+  describe('getPerformance', () => {
+    const createPerformanceCalculator = () =>
+      ({
+        getPerformance: jest.fn().mockResolvedValue({
+          chart: [
+            {
+              dividendInBaseCurrency: 0,
+              dividendInPercentageWithCurrencyEffect: 0,
+              netPerformance: 100,
+              netPerformanceInPercentage: 0.05,
+              netPerformanceInPercentageWithCurrencyEffect: 0.05,
+              netPerformanceWithCurrencyEffect: 100,
+              netWorth: 3000,
+              totalInvestment: 2000,
+              totalInvestmentValueWithCurrencyEffect: 2000,
+              valueWithCurrencyEffect: 3000
+            }
+          ]
+        }),
+        getSnapshot: jest.fn().mockResolvedValue({
+          errors: [],
+          hasErrors: false,
+          historicalData: [{ date: '2024-01-01' }]
+        })
+      } as unknown as ReturnType<
+        typeof portfolioCalculatorFactory.createCalculator
+      >);
+
+    beforeEach(() => {
+      (portfolioService as unknown as {
+        accountBalanceService: object;
+      }).accountBalanceService = {
+        getAccountBalanceItems: jest.fn().mockResolvedValue([])
+      };
+
+      jest
+        .spyOn(activitiesService, 'getActivitiesForPortfolioCalculator')
+        .mockResolvedValue({ activities: [{ id: '1' } as Activity], count: 1 });
+
+      jest.spyOn(userService, 'user').mockResolvedValue({
+        id: userDummyData.id,
+        settings: {
+          settings: {
+            baseCurrency: 'CHF'
+          }
+        }
+      } as unknown as Awaited<ReturnType<typeof userService.user>>);
+    });
+
+    it('should add the account cash balance to the current value when cash is included', async () => {
+      jest
+        .spyOn(portfolioCalculatorFactory, 'createCalculator')
+        .mockReturnValue(createPerformanceCalculator());
+      jest.spyOn(accountService, 'getCashDetails').mockResolvedValue({
+        accounts: [],
+        balanceInBaseCurrency: 500
+      });
+
+      const { performance } = await portfolioService.getPerformance({
+        includeCash: true,
+        userId: userDummyData.id
+      });
+
+      expect(performance.currentValueInBaseCurrency).toBe(3500);
+    });
+
+    it('should leave the current value unchanged by default', async () => {
+      jest
+        .spyOn(portfolioCalculatorFactory, 'createCalculator')
+        .mockReturnValue(createPerformanceCalculator());
+
+      const { performance } = await portfolioService.getPerformance({
+        userId: userDummyData.id
+      });
+
+      expect(performance.currentValueInBaseCurrency).toBe(3000);
+    });
+  });
+
   describe('getHoldings', () => {
     const activeHolding = {
       assetProfile: {

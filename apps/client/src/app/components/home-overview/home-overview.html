@@ -61,6 +61,16 @@
       </div>
     </div>
   } @else {
+    <div class="d-flex justify-content-end w-100">
+      <mat-checkbox
+        class="mr-2"
+        color="primary"
+        i18n
+        [checked]="includeCash()"
+        (change)="onChangeIncludeCash($event.checked)"
+        >Include cash</mat-checkbox
+      >
+    </div>
     <div class="align-items-stretch flex-nowrap row w-100">
       <div class="col-12 col-xl p-0">
         <div class="chart-container mx-auto position-relative">

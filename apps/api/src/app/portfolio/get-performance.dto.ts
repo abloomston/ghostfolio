@@ -8,6 +8,13 @@ export class GetPerformanceDto extends DateRangeFilterDto {
   @IsOptional()
   endDate?: string;
 
+  @IsBoolean()
+  @IsOptional()
+  @Transform(({ value }: TransformFnParams) => {
+    return value === 'true';
+  })
+  includeCash = false;
+
   @IsDateString()
   @IsOptional()
   startDate?: string;
