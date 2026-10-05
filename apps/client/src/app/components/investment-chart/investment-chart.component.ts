@@ -164,8 +164,12 @@ export class GfInvestmentChartComponent implements OnChanges, OnDestroy {
           this.getTooltipPluginConfiguration();
 
         // Keep the time (x) axis aligned with the other charts on the page
-        this.chart.options.scales.x.min = this.timeAxisDomain?.min;
-        this.chart.options.scales.x.max = this.timeAxisDomain?.max;
+        const xScale = this.chart.options.scales?.x;
+
+        if (xScale) {
+          xScale.min = this.timeAxisDomain?.min;
+          xScale.max = this.timeAxisDomain?.max;
+        }
 
         const annotations = this.chart.options.plugins.annotation
           ?.annotations as Record<string, AnnotationOptions<'line'>>;
