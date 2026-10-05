@@ -9,36 +9,100 @@
       }
     </div>
   </div>
-  <div class="col-md-6 col-xs-12 d-flex justify-content-end">
-    <mat-form-field
-      appearance="outline"
-      class="gf-form-field-dense w-100 without-hint"
-      color="accent"
-    >
-      <mat-label i18n>Compare with...</mat-label>
-      <mat-select
-        name="benchmark"
-        [disabled]="user()?.subscription?.type === 'Basic'"
-        [value]="benchmark()?.id"
-        (selectionChange)="onChangeBenchmark($event.value)"
+</div>
+@for (allocation of allocations; track $index; let index = $index) {
+  <div class="align-items-center mb-2 row">
+    <div class="col-md-7 col-xs-12">
+      <mat-form-field
+        appearance="outline"
+        class="gf-form-field-dense w-100 without-hint"
+        color="accent"
       >
-        <mat-option [value]="null" />
-        @for (symbolProfile of benchmarks(); track symbolProfile) {
-          <mat-option [value]="symbolProfile.id">{{
-            symbolProfile.name
-          }}</mat-option>
-        }
-        @if (hasPermissionToAccessAdminControl) {
-          <mat-option [routerLink]="routerLinkAdminControlMarketData">
-            <div class="align-items-center d-flex">
-              <ion-icon class="mr-2 text-muted" name="arrow-forward-outline" />
-              <span i18n>Manage Benchmarks</span>
-            </div>
-          </mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+        <mat-label i18n>Compare with...</mat-label>
+        <mat-select
+          name="benchmark-{{ index }}"
+          [disabled]="user()?.subscription?.type === 'Basic'"
+          [value]="allocation.id"
+          (selectionChange)="onChangeBenchmark(index, $event.value)"
+        >
+          <mat-option value="" />
+          @for (symbolProfile of benchmarks(); track symbolProfile.id) {
+            <mat-option
+              [disabled]="
+                isBenchmarkSelectedInAnotherRow(symbolProfile.id, index)
+              "
+              [value]="symbolProfile.id"
+              >{{ symbolProfile.name }}</mat-option
+            >
+          }
+          @if (hasPermissionToAccessAdminControl) {
+            <mat-option [routerLink]="routerLinkAdminControlMarketData">
+              <div class="align-items-center d-flex">
+                <ion-icon
+                  class="mr-2 text-muted"
+                  name="arrow-forward-outline"
+                />
+                <span i18n>Manage Benchmarks</span>
+              </div>
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+    <div class="col-md-3 col-8">
+      <mat-form-field
+        appearance="outline"
+        class="gf-form-field-dense w-100 without-hint"
+        color="accent"
+      >
+        <mat-label i18n>Allocation</mat-label>
+        <input
+          matInput
+          max="100"
+          min="0"
+          name="allocation-{{ index }}"
+          step="0.01"
+          type="number"
+          [disabled]="user()?.subscription?.type === 'Basic'"
+          [value]="allocation.percentage"
+          (change)="onChangePercentage(index, $any($event.target).value)"
+        />
+        <span matTextSuffix>%</span>
+      </mat-form-field>
+    </div>
+    @if (allocations.length > 1) {
+      <div class="col-md-2 col-4">
+        <button
+          aria-label="Remove benchmark"
+          i18n
+          i18n-aria-label
+          mat-button
+          type="button"
+          [disabled]="user()?.subscription?.type === 'Basic'"
+          (click)="onRemoveBenchmark(index)"
+        >
+          Remove
+        </button>
+      </div>
+    }
   </div>
+}
+<div class="align-items-center d-flex justify-content-between mb-3">
+  <div>
+    <button
+      i18n
+      mat-button
+      type="button"
+      [disabled]="user()?.subscription?.type === 'Basic'"
+      (click)="onAddBenchmark()"
+    >
+      Add instrument
+    </button>
+    <span class="ml-2 text-muted" i18n>Total: {{ getTotalPercentage() }}%</span>
+  </div>
+  @if (hasInvalidComposition()) {
+    <small class="text-danger" i18n>Allocations must total 100%.</small>
+  }
 </div>
 <div class="chart-container">
   @if (isLoading()) {
