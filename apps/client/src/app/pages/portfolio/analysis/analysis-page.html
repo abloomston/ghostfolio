@@ -531,6 +531,46 @@
           (valueChange)="onChangeGroupBy($event.value)"
         />
       </div>
+      <div class="mb-2">
+        <mat-checkbox
+          i18n
+          [checked]="excludeDebits"
+          (change)="onChangeExcludeDebits($event.checked)"
+          >Exclude drawdowns (ignore debits)</mat-checkbox
+        >
+      </div>
+      @if (
+        medianMonthlySavingsRate != null || medianYearlySavingsRate != null
+      ) {
+        <div class="row">
+          @if (medianMonthlySavingsRate != null) {
+            <div class="col-md-6 col-xs-12 my-2">
+              <gf-value
+                i18n
+                size="large"
+                [isCurrency]="true"
+                [locale]="user?.settings?.locale"
+                [unit]="user?.settings?.baseCurrency"
+                [value]="medianMonthlySavingsRate"
+                >Median monthly savings rate</gf-value
+              >
+            </div>
+          }
+          @if (medianYearlySavingsRate != null) {
+            <div class="col-md-6 col-xs-12 my-2">
+              <gf-value
+                i18n
+                size="large"
+                [isCurrency]="true"
+                [locale]="user?.settings?.locale"
+                [unit]="user?.settings?.baseCurrency"
+                [value]="medianYearlySavingsRate"
+                >Median yearly savings rate</gf-value
+              >
+            </div>
+          }
+        </div>
+      }
       @if (streaks) {
         <div class="row">
           <div class="col-md-6 col-xs-12 my-2">

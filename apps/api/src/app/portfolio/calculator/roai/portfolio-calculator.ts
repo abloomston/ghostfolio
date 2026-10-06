@@ -407,6 +407,7 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
       investmentValuesAccumulated,
       investmentValuesAccumulatedWithCurrencyEffect,
       investmentValuesWithCurrencyEffect,
+      investmentValuesWithCurrencyEffectExcludingDebits,
       items,
       netPerformanceValues,
       netPerformanceValuesWithCurrencyEffect
@@ -744,6 +745,7 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
       investmentValuesAccumulated,
       investmentValuesAccumulatedWithCurrencyEffect,
       investmentValuesWithCurrencyEffect,
+      investmentValuesWithCurrencyEffectExcludingDebits,
       netPerformancePercentage,
       netPerformancePercentageWithCurrencyEffectMap,
       netPerformanceValues,

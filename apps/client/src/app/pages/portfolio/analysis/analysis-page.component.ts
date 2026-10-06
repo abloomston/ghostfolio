@@ -1,12 +1,12 @@
 import { GfBenchmarkComparatorComponent } from '@ghostfolio/client/components/benchmark-comparator/benchmark-comparator.component';
 import { GfInvestmentChartComponent } from '@ghostfolio/client/components/investment-chart/investment-chart.component';
 import { UserService } from '@ghostfolio/client/services/user/user.service';
-import { getTimeAxisDomain } from '@ghostfolio/common/chart-helper';
 import {
   calculateBlendedBenchmarkData,
   parseBenchmarkSetting,
   serializeBenchmarkSetting
 } from '@ghostfolio/common/benchmark-composition.helper';
+import { getTimeAxisDomain } from '@ghostfolio/common/chart-helper';
 import {
   DEFAULT_DATE_RANGE,
   NUMERICAL_PRECISION_THRESHOLD_6_FIGURES
@@ -50,6 +50,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -75,6 +76,7 @@ import { forkJoin } from 'rxjs';
     IonIcon,
     MatButtonModule,
     MatCardModule,
+    MatCheckboxModule,
     MatMenuModule,
     MatProgressSpinnerModule,
     NgxSkeletonLoaderModule,
@@ -102,6 +104,9 @@ export class GfAnalysisPageComponent implements OnInit {
   protected isLoadingInvestmentChart: boolean;
   protected isLoadingInvestmentTimelineChart: boolean;
   protected isLoadingPortfolioPrompt: boolean;
+  protected medianMonthlySavingsRate: number | null | undefined;
+  protected medianYearlySavingsRate: number | null | undefined;
+  protected excludeDebits = true;
   protected readonly mode = signal<GroupBy>('month');
   protected readonly modeOptions: ToggleOption<GroupBy>[] = [
     { label: $localize`Monthly`, value: 'month' },
@@ -223,6 +228,11 @@ export class GfAnalysisPageComponent implements OnInit {
     this.fetchDividendsAndInvestments();
   }
 
+  protected onChangeExcludeDebits(excludeDebits: boolean) {
+    this.excludeDebits = excludeDebits;
+    this.fetchDividendsAndInvestments();
+  }
+
   protected onDateRangeSelection(event: Event) {
     const dateRange = (event.target as HTMLSelectElement).value;
 
@@ -333,6 +343,7 @@ export class GfAnalysisPageComponent implements OnInit {
         range: this.user?.settings?.dateRange ?? DEFAULT_DATE_RANGE
       }),
       investments: this.dataService.fetchInvestments({
+        excludeDebits: this.excludeDebits,
         filters: this.userService.getFilters(),
         groupBy: this.mode(),
         range: this.user?.settings?.dateRange ?? DEFAULT_DATE_RANGE
@@ -342,7 +353,13 @@ export class GfAnalysisPageComponent implements OnInit {
       .subscribe(
         ({
           dividends: { dividends },
-          investments: { investments, savingsRate, streaks }
+          investments: {
+            investments,
+            medianMonthlySavingsRate,
+            medianYearlySavingsRate,
+            savingsRate,
+            streaks
+          }
         }) => {
           // Expand both timelines to the union of their groups so that the
           // charts share the same axis, independent of whether a dividend or
@@ -369,6 +386,8 @@ export class GfAnalysisPageComponent implements OnInit {
           });
 
           this.savingsRatePerMonth = savingsRate;
+          this.medianMonthlySavingsRate = medianMonthlySavingsRate;
+          this.medianYearlySavingsRate = medianYearlySavingsRate;
           this.streaks = streaks;
 
           this.unitCurrentStreak =

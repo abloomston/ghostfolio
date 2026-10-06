@@ -422,6 +422,7 @@ export class PortfolioController {
       accounts,
       assetClasses,
       dataSource,
+      excludeDebits,
       groupBy,
       range,
       symbol,
@@ -436,13 +437,19 @@ export class PortfolioController {
       filterByTags: tags
     });
 
-    let { investments, savingsRate, streaks } =
-      await this.portfolioService.getInvestments({
-        filters,
-        groupBy,
-        userId,
-        dateRange: range
-      });
+    let {
+      investments,
+      medianMonthlySavingsRate,
+      medianYearlySavingsRate,
+      savingsRate,
+      streaks
+    } = await this.portfolioService.getInvestments({
+      excludeDebits,
+      filters,
+      groupBy,
+      userId,
+      dateRange: range
+    });
 
     if (
       !hasScope(impersonationScopes, scopes.portfolioReadValues) ||
@@ -463,6 +470,8 @@ export class PortfolioController {
         'longestStreak'
       ]);
 
+      medianMonthlySavingsRate = null;
+      medianYearlySavingsRate = null;
       savingsRate = null;
     }
 
@@ -478,9 +487,17 @@ export class PortfolioController {
         'currentStreak',
         'longestStreak'
       ]);
+      medianMonthlySavingsRate = null;
+      medianYearlySavingsRate = null;
     }
 
-    return { investments, savingsRate, streaks };
+    return {
+      investments,
+      medianMonthlySavingsRate,
+      medianYearlySavingsRate,
+      savingsRate,
+      streaks
+    };
   }
 
   @Get('performance')

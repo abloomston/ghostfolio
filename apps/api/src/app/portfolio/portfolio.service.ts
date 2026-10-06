@@ -115,6 +115,22 @@ const developedMarkets = require('../../assets/countries/developed-markets.json'
 const emergingMarkets = require('../../assets/countries/emerging-markets.json');
 const europeMarkets = require('../../assets/countries/europe-markets.json');
 
+function getMedianInvestment(investments: InvestmentItem[]) {
+  const values = investments
+    .map(({ investment }) => investment)
+    .sort((first, second) => first - second);
+
+  if (values.length === 0) {
+    return undefined;
+  }
+
+  const middleIndex = Math.floor(values.length / 2);
+
+  return values.length % 2 === 0
+    ? (values[middleIndex - 1] + values[middleIndex]) / 2
+    : values[middleIndex];
+}
+
 @Injectable()
 export class PortfolioService {
   private readonly logger = new Logger(PortfolioService.name);
@@ -516,11 +532,13 @@ export class PortfolioService {
 
   public async getInvestments({
     dateRange,
+    excludeDebits = true,
     filters,
     groupBy,
     userId
   }: {
     dateRange: DateRange;
+    excludeDebits?: boolean;
     filters?: Filter[];
     groupBy?: GroupBy;
     userId: string;
@@ -540,8 +558,10 @@ export class PortfolioService {
 
     if (activities.length === 0) {
       return {
-        savingsRate,
         investments: [],
+        medianMonthlySavingsRate: undefined,
+        medianYearlySavingsRate: undefined,
+        savingsRate,
         streaks: { currentStreak: 0, longestStreak: 0 }
       };
     }
@@ -561,21 +581,30 @@ export class PortfolioService {
       return !isBefore(date, startDate) && !isAfter(date, endDate);
     });
 
-    let investments: InvestmentItem[];
-
-    if (groupBy) {
-      investments = portfolioCalculator.getInvestmentsByGroup({
-        groupBy,
-        data: items
-      });
-    } else {
-      investments = items.map(({ date, investmentValueWithCurrencyEffect }) => {
-        return {
-          date,
-          investment: investmentValueWithCurrencyEffect
-        };
-      });
-    }
+    const monthlyInvestments = portfolioCalculator.getInvestmentsByGroup({
+      data: items,
+      excludeDebits,
+      groupBy: 'month'
+    });
+    const yearlyInvestments = portfolioCalculator.getInvestmentsByGroup({
+      data: items,
+      excludeDebits,
+      groupBy: 'year'
+    });
+    const investments = groupBy
+      ? groupBy === 'year'
+        ? yearlyInvestments
+        : monthlyInvestments
+      : items.map(({ date, investmentValueWithCurrencyEffect }) => {
+          return {
+            date,
+            investment: portfolioCalculator.getInvestmentValueForDate({
+              date,
+              excludeDebits,
+              investmentValue: investmentValueWithCurrencyEffect
+            })
+          };
+        });
 
     let streaks: PortfolioInvestmentsResponse['streaks'] = {
       currentStreak: 0,
@@ -591,6 +620,8 @@ export class PortfolioService {
 
     return {
       investments,
+      medianMonthlySavingsRate: getMedianInvestment(monthlyInvestments),
+      medianYearlySavingsRate: getMedianInvestment(yearlyInvestments),
       savingsRate,
       streaks
     };
