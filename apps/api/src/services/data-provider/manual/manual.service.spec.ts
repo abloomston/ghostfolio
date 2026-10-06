@@ -124,6 +124,54 @@ describe('ManualService', () => {
       });
     });
 
+    it('derives synthetic prices backward for a range entirely before the anchor', async () => {
+      prismaService.symbolProfile.findUnique.mockResolvedValue({
+        manualTickerYahooFinanceConnection: connection
+      });
+      yahooFinanceService.getHistorical.mockResolvedValue({
+        '2025-12-31': { marketPrice: 90 },
+        '2026-01-02': { marketPrice: 100 }
+      });
+
+      const result = await manualService.getHistorical({
+        from: new Date('2025-12-31T00:00:00.000Z'),
+        symbol: 'manual-symbol',
+        to: new Date('2026-01-01T00:00:00.000Z')
+      });
+
+      expect(result['2025-12-31'].marketPrice).toBeCloseTo(600 / 7, 10);
+      expect(result['2026-01-01'].marketPrice).toBeCloseTo(600 / 7, 10);
+      expect(yahooFinanceService.getHistorical).toHaveBeenCalledWith({
+        from: new Date('2025-12-17T00:00:00.000Z'),
+        symbol: 'SPY',
+        to: new Date('2026-01-02T00:00:00.000Z')
+      });
+    });
+
+    it('combines backward-derived prices with the existing forward synthetic history', async () => {
+      prismaService.symbolProfile.findUnique.mockResolvedValue({
+        manualTickerYahooFinanceConnection: connection
+      });
+      yahooFinanceService.getHistorical.mockResolvedValue({
+        '2025-12-31': { marketPrice: 90 },
+        '2026-01-02': { marketPrice: 100 },
+        '2026-01-05': { marketPrice: 110 }
+      });
+
+      const result = await manualService.getHistorical({
+        from: new Date('2025-12-31T00:00:00.000Z'),
+        symbol: 'manual-symbol',
+        to: new Date('2026-01-05T00:00:00.000Z')
+      });
+
+      expect(result['2025-12-31'].marketPrice).toBeCloseTo(600 / 7, 10);
+      expect(result['2026-01-01'].marketPrice).toBeCloseTo(600 / 7, 10);
+      expect(result['2026-01-02']).toEqual({ marketPrice: 100 });
+      expect(result['2026-01-03']).toEqual({ marketPrice: 100 });
+      expect(result['2026-01-04']).toEqual({ marketPrice: 100 });
+      expect(result['2026-01-05']).toEqual({ marketPrice: 115 });
+    });
+
     it('uses the stored synthetic price before a recent gathering range', async () => {
       prismaService.symbolProfile.findUnique.mockResolvedValue({
         manualTickerYahooFinanceConnection: connection

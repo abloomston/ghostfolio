@@ -100,7 +100,9 @@ import {
   isSameMonth,
   isSameYear,
   parseISO,
-  set
+  set,
+  subDays,
+  subYears
 } from 'date-fns';
 import { groupBy } from 'lodash';
 
@@ -1093,12 +1095,66 @@ export class PortfolioService {
       );
     });
 
-    const historicalData = await this.dataProviderService.getHistorical(
+    const now = new Date();
+    const isManualTickerWithYahooConnection =
+      dataSource === DataSource.MANUAL && !!assetProfile.yahooFinanceConnection;
+    const historicalDataStartDate = isManualTickerWithYahooConnection
+      ? new Date(
+          Math.min(
+            parseISO(dateOfFirstActivity, { in: utc }).getTime(),
+            subDays(subYears(now, 10), 14, { in: utc }).getTime()
+          )
+        )
+      : parseISO(dateOfFirstActivity, { in: utc });
+    let historicalData = await this.dataProviderService.getHistorical(
       [{ dataSource, symbol }],
       'day',
-      parseISO(dateOfFirstActivity, { in: utc }),
-      new Date()
+      historicalDataStartDate,
+      now
     );
+
+    if (isManualTickerWithYahooConnection) {
+      const assetProfileIdentifier = getAssetProfileIdentifier({
+        dataSource,
+        symbol
+      });
+      const tenYearCutoff = subYears(now, 10);
+      const hasTenYearHistory = Object.entries(
+        historicalData[assetProfileIdentifier] ?? {}
+      ).some(([date, { marketPrice }]) => {
+        return (
+          new Date(date).getTime() <= tenYearCutoff.getTime() &&
+          Number.isFinite(marketPrice) &&
+          marketPrice > 0
+        );
+      });
+
+      if (!hasTenYearHistory) {
+        try {
+          const backfilledHistoricalData =
+            await this.dataProviderService.getHistoricalRaw({
+              assetProfileIdentifiers: [{ dataSource, symbol }],
+              from: historicalDataStartDate,
+              to: now
+            });
+
+          historicalData = {
+            ...backfilledHistoricalData,
+            ...historicalData,
+            [assetProfileIdentifier]: {
+              ...backfilledHistoricalData[assetProfileIdentifier],
+              ...historicalData[assetProfileIdentifier]
+            }
+          };
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          this.logger.warn(
+            `Could not derive historical beta prices for ${symbol} (${dataSource}): ${message}`
+          );
+        }
+      }
+    }
 
     const [firstActivity] = activitiesOfHolding;
     const referenceUnitPrice =
