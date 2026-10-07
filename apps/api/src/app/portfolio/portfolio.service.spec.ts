@@ -786,6 +786,89 @@ describe('PortfolioService', () => {
       }
     );
 
+    it('loads synthetic history on demand for a manual ticker with a Yahoo connection', async () => {
+      const manualSymbol = 'private-company';
+      const manualActivity = {
+        assetProfile: {
+          dataSource: DataSource.MANUAL,
+          symbol: manualSymbol
+        },
+        tags: []
+      } as Activity;
+      jest
+        .spyOn(activitiesService, 'getActivitiesForPortfolioCalculator')
+        .mockResolvedValue({ activities: [manualActivity], count: 1 });
+      jest.spyOn(userService, 'user').mockResolvedValue({
+        id: userDummyData.id,
+        settings: { settings: { baseCurrency: 'USD' } }
+      } as unknown as Awaited<ReturnType<typeof userService.user>>);
+      jest.spyOn(symbolProfileService, 'getSymbolProfiles').mockResolvedValue([
+        {
+          assetClass: AssetClass.EQUITY,
+          assetSubClass: null,
+          countries: [],
+          currency: 'USD',
+          dataSource: DataSource.MANUAL,
+          name: 'Private company',
+          sectors: [],
+          symbol: manualSymbol,
+          yahooFinanceConnection: { beta: 1.2, symbol: 'SPY' }
+        } as any
+      ]);
+      jest
+        .spyOn(portfolioCalculatorFactory, 'createCalculator')
+        .mockReturnValue({
+          getHoldingBalancesByDate: jest.fn().mockReturnValue([]),
+          getSnapshot: jest.fn().mockResolvedValue({
+            positions: [
+              {
+                activitiesCount: 1,
+                averageInvestment: new Big(0),
+                averageInvestmentWithCurrencyEffect: new Big(0),
+                averagePrice: new Big(100),
+                currency: 'USD',
+                dateOfFirstActivity: '2018-01-01',
+                dividendInBaseCurrency: new Big(0),
+                feeInBaseCurrency: new Big(0),
+                marketPrice: 100,
+                quantity: new Big(1),
+                symbol: manualSymbol,
+                dataSource: DataSource.MANUAL,
+                tags: []
+              }
+            ]
+          })
+        } as unknown as PortfolioCalculator);
+
+      jest.spyOn(dataProviderService, 'getHistorical').mockResolvedValue({});
+      const getHistoricalRaw = jest
+        .spyOn(dataProviderService, 'getHistoricalRaw')
+        .mockResolvedValue({});
+      jest.spyOn(dataProviderService, 'getDataProvider').mockReturnValue({
+        getDataProviderInfo: jest.fn().mockReturnValue({})
+      } as any);
+      jest.spyOn(exchangeRateDataService, 'toCurrency').mockReturnValue(100);
+      (portfolioService as any).benchmarkService = {
+        calculateChangeInPercentage: jest.fn().mockReturnValue(0)
+      };
+
+      await portfolioService.getHolding({
+        dataSource: DataSource.MANUAL,
+        symbol: manualSymbol,
+        userId: userDummyData.id
+      });
+
+      expect(getHistoricalRaw).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assetProfileIdentifiers: [
+            { dataSource: DataSource.MANUAL, symbol: manualSymbol }
+          ],
+          from: expect.any(Date),
+          to: expect.any(Date)
+        })
+      );
+    });
+
     it('does not load excluded activities by default', async () => {
       const getActivities = jest
         .spyOn(activitiesService, 'getActivitiesForPortfolioCalculator')

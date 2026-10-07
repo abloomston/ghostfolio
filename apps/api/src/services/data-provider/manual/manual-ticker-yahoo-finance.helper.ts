@@ -19,3 +19,32 @@ export function calculateSyntheticMarketPrice({
     .mul(yahooReturn.mul(beta).plus(1))
     .toNumber();
 }
+
+export function calculatePreviousSyntheticMarketPrice({
+  beta,
+  nextSyntheticMarketPrice,
+  nextYahooMarketPrice,
+  yahooMarketPrice
+}: {
+  beta: number;
+  nextSyntheticMarketPrice: number;
+  nextYahooMarketPrice: number;
+  yahooMarketPrice: number;
+}): number | undefined {
+  const yahooReturn = new Big(nextYahooMarketPrice)
+    .div(yahooMarketPrice)
+    .minus(1);
+  const syntheticPriceFactor = yahooReturn.mul(beta).plus(1);
+
+  if (syntheticPriceFactor.eq(0)) {
+    return undefined;
+  }
+
+  const previousSyntheticMarketPrice = new Big(nextSyntheticMarketPrice)
+    .div(syntheticPriceFactor)
+    .toNumber();
+
+  return Number.isFinite(previousSyntheticMarketPrice)
+    ? previousSyntheticMarketPrice
+    : undefined;
+}

@@ -38,7 +38,10 @@ import {
 import * as cheerio from 'cheerio';
 import { addDays, format, isAfter, isBefore, subDays } from 'date-fns';
 
-import { calculateSyntheticMarketPrice } from './manual-ticker-yahoo-finance.helper';
+import {
+  calculatePreviousSyntheticMarketPrice,
+  calculateSyntheticMarketPrice
+} from './manual-ticker-yahoo-finance.helper';
 
 @Injectable()
 export class ManualService implements DataProviderInterface {
@@ -517,15 +520,15 @@ export class ManualService implements DataProviderInterface {
     const anchorDate = getStartOfUtcDate(connection.anchorDate);
     const requestedEndDate = getStartOfUtcDate(to);
     const requestedStartDate = getStartOfUtcDate(from);
-
-    if (isBefore(requestedEndDate, anchorDate)) {
-      return {};
-    }
+    const shouldBackfill = isBefore(requestedStartDate, anchorDate);
 
     let calculationStartDate = anchorDate;
     let previousSyntheticMarketPrice = connection.anchorMarketPrice;
 
-    if (isAfter(requestedStartDate, anchorDate)) {
+    if (
+      !isBefore(requestedEndDate, anchorDate) &&
+      isAfter(requestedStartDate, anchorDate)
+    ) {
       const latestSyntheticMarketData =
         await this.prismaService.marketData.findFirst({
           orderBy: { date: 'desc' },
@@ -547,56 +550,124 @@ export class ManualService implements DataProviderInterface {
       }
     }
 
+    const yahooHistoryStartDate = shouldBackfill
+      ? subDays(requestedStartDate, 14, { in: utc })
+      : subDays(calculationStartDate, 14, { in: utc });
+    const yahooHistoryEndDate =
+      shouldBackfill && isBefore(requestedEndDate, anchorDate)
+        ? anchorDate
+        : requestedEndDate;
     const yahooHistoricalData = await this.yahooFinanceService.getHistorical({
-      from: subDays(calculationStartDate, 14, { in: utc }),
+      from: yahooHistoryStartDate,
       symbol: connection.symbol,
-      to: requestedEndDate
+      to: yahooHistoryEndDate
     });
     const yahooMarketPricesByDate = new Map(
       Object.entries(yahooHistoricalData)
     );
-    let previousYahooMarketPrice = connection.anchorYahooMarketPrice;
-
-    if (isAfter(calculationStartDate, anchorDate)) {
-      for (const [dateString, data] of Object.entries(yahooHistoricalData).sort(
-        ([dateStringA], [dateStringB]) => {
-          return dateStringA.localeCompare(dateStringB);
-        }
-      )) {
-        if (!isAfter(getUtc(dateString), calculationStartDate)) {
-          previousYahooMarketPrice = data.marketPrice;
-        }
-      }
-    }
-
     const historicalData: {
       [date: string]: DataProviderHistoricalResponse;
     } = {};
-    let date = calculationStartDate;
 
-    while (!isAfter(date, requestedEndDate)) {
-      const dateString = format(date, DATE_FORMAT, { in: utc });
-      const yahooMarketPrice =
-        yahooMarketPricesByDate.get(dateString)?.marketPrice ??
-        previousYahooMarketPrice;
+    if (shouldBackfill) {
+      const backfillEndDate = isBefore(requestedEndDate, anchorDate)
+        ? requestedEndDate
+        : subDays(anchorDate, 1, { in: utc });
+      let nextDate = anchorDate;
+      let nextSyntheticMarketPrice = connection.anchorMarketPrice;
+      let nextYahooMarketPrice = connection.anchorYahooMarketPrice;
 
-      if (isAfter(date, calculationStartDate)) {
-        previousSyntheticMarketPrice = calculateSyntheticMarketPrice({
+      for (const [
+        dateString,
+        { marketPrice: yahooMarketPrice }
+      ] of Object.entries(yahooHistoricalData).sort(
+        ([firstDate], [secondDate]) => {
+          return secondDate.localeCompare(firstDate);
+        }
+      )) {
+        const date = getUtc(dateString);
+
+        if (
+          !isBefore(date, anchorDate) ||
+          !Number.isFinite(yahooMarketPrice) ||
+          yahooMarketPrice <= 0
+        ) {
+          continue;
+        }
+
+        const syntheticMarketPrice = calculatePreviousSyntheticMarketPrice({
           beta: connection.beta,
-          previousSyntheticMarketPrice,
-          previousYahooMarketPrice,
+          nextSyntheticMarketPrice,
+          nextYahooMarketPrice,
           yahooMarketPrice
         });
+
+        if (syntheticMarketPrice === undefined) {
+          break;
+        }
+
+        const intervalEndDate = subDays(nextDate, 1, { in: utc });
+        let outputDate = isBefore(date, requestedStartDate)
+          ? requestedStartDate
+          : date;
+        const outputEndDate = isBefore(intervalEndDate, backfillEndDate)
+          ? intervalEndDate
+          : backfillEndDate;
+
+        while (!isAfter(outputDate, outputEndDate)) {
+          historicalData[format(outputDate, DATE_FORMAT, { in: utc })] = {
+            marketPrice: syntheticMarketPrice
+          };
+          outputDate = addDays(outputDate, 1, { in: utc });
+        }
+
+        nextDate = date;
+        nextSyntheticMarketPrice = syntheticMarketPrice;
+        nextYahooMarketPrice = yahooMarketPrice;
+      }
+    }
+
+    if (!isBefore(requestedEndDate, anchorDate)) {
+      let previousYahooMarketPrice = connection.anchorYahooMarketPrice;
+
+      if (isAfter(calculationStartDate, anchorDate)) {
+        for (const [dateString, data] of Object.entries(
+          yahooHistoricalData
+        ).sort(([dateStringA], [dateStringB]) => {
+          return dateStringA.localeCompare(dateStringB);
+        })) {
+          if (!isAfter(getUtc(dateString), calculationStartDate)) {
+            previousYahooMarketPrice = data.marketPrice;
+          }
+        }
       }
 
-      if (!isBefore(date, requestedStartDate)) {
-        historicalData[dateString] = {
-          marketPrice: previousSyntheticMarketPrice
-        };
-      }
+      let date = calculationStartDate;
 
-      previousYahooMarketPrice = yahooMarketPrice;
-      date = addDays(date, 1, { in: utc });
+      while (!isAfter(date, requestedEndDate)) {
+        const dateString = format(date, DATE_FORMAT, { in: utc });
+        const yahooMarketPrice =
+          yahooMarketPricesByDate.get(dateString)?.marketPrice ??
+          previousYahooMarketPrice;
+
+        if (isAfter(date, calculationStartDate)) {
+          previousSyntheticMarketPrice = calculateSyntheticMarketPrice({
+            beta: connection.beta,
+            previousSyntheticMarketPrice,
+            previousYahooMarketPrice,
+            yahooMarketPrice
+          });
+        }
+
+        if (!isBefore(date, requestedStartDate)) {
+          historicalData[dateString] = {
+            marketPrice: previousSyntheticMarketPrice
+          };
+        }
+
+        previousYahooMarketPrice = yahooMarketPrice;
+        date = addDays(date, 1, { in: utc });
+      }
     }
 
     return historicalData;
