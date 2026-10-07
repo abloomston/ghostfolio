@@ -131,6 +131,12 @@ describe('PortfolioCalculator', () => {
         data: portfolioSnapshot.historicalData,
         groupBy: 'month'
       });
+      const investmentsByMonthExcludingDebits =
+        portfolioCalculator.getInvestmentsByGroup({
+          data: portfolioSnapshot.historicalData,
+          excludeDebits: true,
+          groupBy: 'month'
+        });
 
       const investmentsByYear = portfolioCalculator.getInvestmentsByGroup({
         data: portfolioSnapshot.historicalData,
@@ -268,6 +274,17 @@ describe('PortfolioCalculator', () => {
       expect(investmentsByYear).toEqual([
         { date: '2022-01-01', investment: 0 }
       ]);
+      expect(investmentsByMonthExcludingDebits).toEqual([
+        { date: '2022-03-01', investment: 151.6 },
+        { date: '2022-04-01', investment: 0 }
+      ]);
+      expect(
+        portfolioCalculator.getInvestmentValueForDate({
+          date: '2022-04-08',
+          excludeDebits: true,
+          investmentValue: -151.6
+        })
+      ).toBe(0);
     });
   });
 });

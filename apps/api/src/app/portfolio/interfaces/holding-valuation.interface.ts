@@ -9,6 +9,7 @@ export interface HoldingValuation {
   investmentValuesAccumulated: { [date: string]: Big };
   investmentValuesAccumulatedWithCurrencyEffect: { [date: string]: Big };
   investmentValuesWithCurrencyEffect: { [date: string]: Big };
+  investmentValuesWithCurrencyEffectExcludingDebits: { [date: string]: Big };
   items: HoldingValuationItem[];
   netPerformanceValues: { [date: string]: Big };
   netPerformanceValuesWithCurrencyEffect: { [date: string]: Big };

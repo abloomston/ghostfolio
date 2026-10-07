@@ -207,5 +207,19 @@ describe('GfAnalysisPageComponent', () => {
 
     expect(componentFixture.componentInstance['selectedDateRange']).toBe('5y');
     expect(select.value).toBe('5y');
+
+    const component = componentFixture.componentInstance;
+    expect(component['excludeDebits']).toBe(true);
+
+    component['onChangeExcludeDebits'](true);
+    expect(dataService.fetchInvestments).toHaveBeenLastCalledWith(
+      expect.objectContaining({ excludeDebits: true })
+    );
+
+    component['onChangeExcludeDebits'](false);
+
+    expect(dataService.fetchInvestments).toHaveBeenLastCalledWith(
+      expect.objectContaining({ excludeDebits: false })
+    );
   });
 });

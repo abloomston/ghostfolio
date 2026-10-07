@@ -33,6 +33,9 @@ export interface HoldingPerformance {
   investmentValuesWithCurrencyEffect: {
     [date: string]: Big;
   };
+  investmentValuesWithCurrencyEffectExcludingDebits: {
+    [date: string]: Big;
+  };
   netPerformance: Big;
   netPerformancePercentage: Big;
   netPerformancePercentageWithCurrencyEffectMap: { [key: DateRange]: Big };

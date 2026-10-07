@@ -557,15 +557,18 @@ export class DataService {
   }
 
   public fetchInvestments({
+    excludeDebits = true,
     filters,
     groupBy = 'month',
     range
   }: {
+    excludeDebits?: boolean;
     filters?: Filter[];
     groupBy?: GroupBy;
     range: DateRange;
   }) {
     let params = this.buildFiltersAsQueryParams({ filters });
+    params = params.append('excludeDebits', excludeDebits.toString());
     params = params.append('groupBy', groupBy);
     params = params.append('range', range);
 

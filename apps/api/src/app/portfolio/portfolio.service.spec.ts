@@ -22,6 +22,7 @@ import {
   PortfolioSummary
 } from '@ghostfolio/common/interfaces';
 import { AccountWithBalance } from '@ghostfolio/common/types';
+import { PerformanceCalculationType } from '@ghostfolio/common/types/performance-calculation-type.type';
 
 import { AssetClass, DataSource, Prisma } from '@prisma/client';
 import { Big } from 'big.js';
@@ -1072,6 +1073,82 @@ describe('PortfolioService', () => {
       // 6 * 150 (unit price of the latest activity)
       expect(summary.excludedAccountsAndActivities).toBe(900);
       expect(summary.totalValueInBaseCurrency).toBe(3900);
+    });
+  });
+
+  describe('getInvestments', () => {
+    it('returns median monthly and yearly savings rates for the selected debit option', async () => {
+      jest.spyOn(userService, 'user').mockResolvedValue({
+        settings: {
+          settings: {
+            baseCurrency: 'USD',
+            performanceCalculationType: PerformanceCalculationType.ROAI
+          }
+        }
+      } as never);
+      jest
+        .spyOn(activitiesService, 'getActivitiesForPortfolioCalculator')
+        .mockResolvedValue({ activities: [{}] as never } as never);
+
+      const calculator = {
+        getSnapshot: jest.fn().mockResolvedValue({
+          historicalData: [
+            { date: '2024-01-01', investmentValueWithCurrencyEffect: 100 }
+          ]
+        }),
+        getInvestmentsByGroup: jest.fn(({ excludeDebits, groupBy }) => {
+          if (excludeDebits) {
+            return groupBy === 'month'
+              ? [
+                  { date: '2024-01-01', investment: 100 },
+                  { date: '2024-02-01', investment: 200 },
+                  { date: '2024-03-01', investment: 300 }
+                ]
+              : [
+                  { date: '2023-01-01', investment: 400 },
+                  { date: '2024-01-01', investment: 800 }
+                ];
+          }
+
+          return groupBy === 'month'
+            ? [
+                { date: '2024-01-01', investment: -100 },
+                { date: '2024-02-01', investment: 100 },
+                { date: '2024-03-01', investment: 200 }
+              ]
+            : [
+                { date: '2023-01-01', investment: -100 },
+                { date: '2024-01-01', investment: 500 }
+              ];
+        })
+      };
+      jest
+        .spyOn(portfolioCalculatorFactory, 'createCalculator')
+        .mockReturnValue(calculator as never);
+
+      const excluded = await portfolioService.getInvestments({
+        dateRange: 'max',
+        excludeDebits: true,
+        groupBy: 'month',
+        userId: userDummyData.id
+      });
+      const included = await portfolioService.getInvestments({
+        dateRange: 'max',
+        excludeDebits: false,
+        groupBy: 'month',
+        userId: userDummyData.id
+      });
+
+      expect(excluded.medianMonthlySavingsRate).toBe(200);
+      expect(excluded.medianYearlySavingsRate).toBe(600);
+      expect(included.medianMonthlySavingsRate).toBe(100);
+      expect(included.medianYearlySavingsRate).toBe(200);
+      expect(calculator.getInvestmentsByGroup).toHaveBeenCalledWith(
+        expect.objectContaining({ excludeDebits: true, groupBy: 'month' })
+      );
+      expect(calculator.getInvestmentsByGroup).toHaveBeenCalledWith(
+        expect.objectContaining({ excludeDebits: false, groupBy: 'year' })
+      );
     });
   });
 

@@ -104,6 +104,9 @@ export abstract class PortfolioCalculator {
   private subscriptionType?: SubscriptionType;
   private usePortfolioSnapshotCache: boolean;
   private userId: string;
+  private investmentValuesWithCurrencyEffectExcludingDebitsByDate: {
+    [date: string]: Big;
+  } = {};
 
   public constructor({
     accountBalanceItems,
@@ -374,6 +377,9 @@ export abstract class PortfolioCalculator {
         investmentValuesAccumulated: { [date: string]: Big };
         investmentValuesAccumulatedWithCurrencyEffect: { [date: string]: Big };
         investmentValuesWithCurrencyEffect: { [date: string]: Big };
+        investmentValuesWithCurrencyEffectExcludingDebits: {
+          [date: string]: Big;
+        };
         netPerformanceValues: { [date: string]: Big };
         netPerformanceValuesWithCurrencyEffect: { [date: string]: Big };
         netWorthValuesWithCurrencyEffect: { [date: string]: Big };
@@ -416,6 +422,7 @@ export abstract class PortfolioCalculator {
         investmentValuesAccumulated,
         investmentValuesAccumulatedWithCurrencyEffect,
         investmentValuesWithCurrencyEffect,
+        investmentValuesWithCurrencyEffectExcludingDebits,
         netPerformance,
         netPerformancePercentage,
         netPerformancePercentageWithCurrencyEffectMap,
@@ -456,6 +463,7 @@ export abstract class PortfolioCalculator {
               investmentValuesAccumulated: {},
               investmentValuesAccumulatedWithCurrencyEffect: {},
               investmentValuesWithCurrencyEffect: {},
+              investmentValuesWithCurrencyEffectExcludingDebits: {},
               netPerformanceValues: {},
               netPerformanceValuesWithCurrencyEffect: {},
               netWorthValuesWithCurrencyEffect: currentValuesWithCurrencyEffect
@@ -468,6 +476,7 @@ export abstract class PortfolioCalculator {
               investmentValuesAccumulated,
               investmentValuesAccumulatedWithCurrencyEffect,
               investmentValuesWithCurrencyEffect,
+              investmentValuesWithCurrencyEffectExcludingDebits,
               netPerformanceValues,
               netPerformanceValuesWithCurrencyEffect,
               netWorthValuesWithCurrencyEffect: currentValuesWithCurrencyEffect
@@ -557,6 +566,8 @@ export abstract class PortfolioCalculator {
 
     const assetProfileIdentifiers = Object.keys(valuesByAssetProfileIdentifier);
 
+    this.investmentValuesWithCurrencyEffectExcludingDebitsByDate = {};
+
     for (const dateString of chartDates) {
       for (const assetProfileIdentifier of assetProfileIdentifiers) {
         const assetProfileValues =
@@ -581,6 +592,19 @@ export abstract class PortfolioCalculator {
         const investmentValueWithCurrencyEffect =
           assetProfileValues.investmentValuesWithCurrencyEffect?.[dateString] ??
           new Big(0);
+
+        const investmentValueWithCurrencyEffectExcludingDebits =
+          assetProfileValues
+            .investmentValuesWithCurrencyEffectExcludingDebits?.[dateString] ??
+          new Big(0);
+
+        this.investmentValuesWithCurrencyEffectExcludingDebitsByDate[
+          dateString
+        ] = (
+          this.investmentValuesWithCurrencyEffectExcludingDebitsByDate[
+            dateString
+          ] ?? new Big(0)
+        ).plus(investmentValueWithCurrencyEffectExcludingDebits);
 
         const netPerformanceValue =
           assetProfileValues.netPerformanceValues?.[dateString] ?? new Big(0);
@@ -891,6 +915,7 @@ export abstract class PortfolioCalculator {
       investmentValuesAccumulated: {},
       investmentValuesAccumulatedWithCurrencyEffect: {},
       investmentValuesWithCurrencyEffect: {},
+      investmentValuesWithCurrencyEffectExcludingDebits: {},
       netPerformance: new Big(0),
       netPerformancePercentage: new Big(0),
       netPerformancePercentageWithCurrencyEffectMap: {},
@@ -964,6 +989,9 @@ export abstract class PortfolioCalculator {
     } = {};
 
     const investmentValuesWithCurrencyEffect: { [date: string]: Big } = {};
+    const investmentValuesWithCurrencyEffectExcludingDebits: {
+      [date: string]: Big;
+    } = {};
     const items: HoldingValuationItem[] = [];
     let lastAveragePrice = new Big(0);
     let lastAveragePriceWithCurrencyEffect = new Big(0);
@@ -1236,6 +1264,13 @@ export abstract class PortfolioCalculator {
         investmentValuesWithCurrencyEffect[activity.date] = (
           investmentValuesWithCurrencyEffect[activity.date] ?? new Big(0)
         ).add(transactionInvestmentWithCurrencyEffect);
+
+        if (transactionInvestmentWithCurrencyEffect.gt(0)) {
+          investmentValuesWithCurrencyEffectExcludingDebits[activity.date] = (
+            investmentValuesWithCurrencyEffectExcludingDebits[activity.date] ??
+            new Big(0)
+          ).add(transactionInvestmentWithCurrencyEffect);
+        }
       }
 
       if (PortfolioCalculator.ENABLE_LOGGING) {
@@ -1294,6 +1329,7 @@ export abstract class PortfolioCalculator {
       investmentValuesAccumulated,
       investmentValuesAccumulatedWithCurrencyEffect,
       investmentValuesWithCurrencyEffect,
+      investmentValuesWithCurrencyEffectExcludingDebits,
       items,
       netPerformanceValues,
       netPerformanceValuesWithCurrencyEffect
@@ -1323,11 +1359,33 @@ export abstract class PortfolioCalculator {
     });
   }
 
+  public getInvestmentValueForDate({
+    date,
+    excludeDebits = false,
+    investmentValue
+  }: {
+    date: string;
+    excludeDebits?: boolean;
+    investmentValue: number | undefined;
+  }) {
+    if (!excludeDebits) {
+      return investmentValue ?? 0;
+    }
+
+    return (
+      this.investmentValuesWithCurrencyEffectExcludingDebitsByDate[
+        date
+      ]?.toNumber() ?? Math.max(investmentValue ?? 0, 0)
+    );
+  }
+
   public getInvestmentsByGroup({
     data,
+    excludeDebits = false,
     groupBy
   }: {
     data: HistoricalDataItem[];
+    excludeDebits?: boolean;
     groupBy: GroupBy;
   }): InvestmentItem[] {
     const groupedData: { [dateGroup: string]: Big } = {};
@@ -1335,8 +1393,14 @@ export abstract class PortfolioCalculator {
     for (const { date, investmentValueWithCurrencyEffect } of data) {
       const dateGroup =
         groupBy === 'month' ? date.substring(0, 7) : date.substring(0, 4);
+      const investment = this.getInvestmentValueForDate({
+        date,
+        excludeDebits,
+        investmentValue: investmentValueWithCurrencyEffect
+      });
+
       groupedData[dateGroup] = (groupedData[dateGroup] ?? new Big(0)).plus(
-        investmentValueWithCurrencyEffect
+        investment
       );
     }
 
