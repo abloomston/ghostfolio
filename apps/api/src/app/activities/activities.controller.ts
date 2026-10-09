@@ -261,6 +261,9 @@ export class ActivitiesController {
 
     const activity = await this.activitiesService.createActivity({
       ...data,
+      mortgageStartDate: data.mortgageStartDate
+        ? parseISO(data.mortgageStartDate)
+        : undefined,
       userId,
       date: parseISO(data.date),
       SymbolProfile: {
@@ -344,6 +347,9 @@ export class ActivitiesController {
       userId,
       data: {
         ...data,
+        mortgageStartDate: data.mortgageStartDate
+          ? parseISO(data.mortgageStartDate)
+          : undefined,
         date,
         account: accountId
           ? {

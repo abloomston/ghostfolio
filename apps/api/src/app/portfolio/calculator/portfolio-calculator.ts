@@ -47,6 +47,10 @@ import {
   PortfolioSnapshot,
   PortfolioSnapshotHolding
 } from '@ghostfolio/common/models';
+import {
+  getMortgageOutstandingBalance,
+  getMortgageTermsFromActivity
+} from '@ghostfolio/common/mortgage-calculator';
 import { GroupBy } from '@ghostfolio/common/types';
 import { PerformanceCalculationType } from '@ghostfolio/common/types/performance-calculation-type.type';
 
@@ -155,6 +159,9 @@ export abstract class PortfolioCalculator {
           date,
           feeInAssetProfileCurrency,
           feeInBaseCurrency,
+          mortgageInterestRate,
+          mortgageStartDate,
+          mortgageTermYears,
           quantity,
           tags = [],
           type,
@@ -177,6 +184,11 @@ export abstract class PortfolioCalculator {
             date: format(date, DATE_FORMAT),
             fee: new Big(feeInAssetProfileCurrency),
             feeInBaseCurrency: new Big(feeInBaseCurrency),
+            mortgageInterestRate,
+            mortgageStartDate: mortgageStartDate
+              ? new Date(mortgageStartDate)
+              : undefined,
+            mortgageTermYears,
             quantity: new Big(quantity),
             unitPrice: new Big(unitPriceInAssetProfileCurrency)
           };
@@ -1526,9 +1538,11 @@ export abstract class PortfolioCalculator {
 
   protected getTotalsFromActivities({
     activities,
+    asOfDate,
     exchangeRates
   }: {
     activities: PortfolioCalculatorActivity[];
+    asOfDate: Date;
     exchangeRates: { [dateString: string]: number };
   }) {
     let totalDividend = new Big(0);
@@ -1553,10 +1567,24 @@ export abstract class PortfolioCalculator {
           interest.mul(exchangeRateAtActivityDate ?? 1)
         );
       } else if (activity.type === 'LIABILITY') {
-        const liabilities = activity.quantity.mul(activity.unitPrice);
+        const mortgageTerms = getMortgageTermsFromActivity({
+          mortgageInterestRate: activity.mortgageInterestRate,
+          mortgageStartDate: activity.mortgageStartDate,
+          mortgageTermYears: activity.mortgageTermYears,
+          quantity: activity.quantity.toNumber(),
+          unitPrice: activity.unitPrice.toNumber()
+        });
+
+        // A mortgage liability is counted at its outstanding principal as of
+        // the analysis date, which shrinks as payments are amortized. Plain
+        // liabilities (no mortgage terms) keep their original amount.
+        const outstanding =
+          mortgageTerms !== null
+            ? getMortgageOutstandingBalance(mortgageTerms, asOfDate)
+            : activity.quantity.mul(activity.unitPrice).toNumber();
 
         totalLiabilitiesInBaseCurrency = totalLiabilitiesInBaseCurrency.plus(
-          liabilities.mul(exchangeRateAtActivityDate ?? 1)
+          new Big(outstanding).mul(exchangeRateAtActivityDate ?? 1)
         );
       }
     }

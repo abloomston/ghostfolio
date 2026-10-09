@@ -15,10 +15,20 @@ export interface ExportResponse {
     | 'accountUserId'
     | 'createdAt'
     | 'date'
+    | 'mortgageInterestRate'
+    | 'mortgageStartDate'
+    | 'mortgageTermYears'
+    | 'propertyValue'
     | 'symbolProfileId'
     | 'updatedAt'
     | 'userId'
-  > & { date: string } & AssetProfileIdentifier)[];
+  > & {
+    date: string;
+    mortgageInterestRate?: number;
+    mortgageStartDate?: string;
+    mortgageTermYears?: number;
+    propertyValue?: number;
+  } & AssetProfileIdentifier)[];
   assetProfiles: (Omit<
     SymbolProfile,
     | 'createdAt'

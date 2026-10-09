@@ -2345,10 +2345,11 @@ export class PortfolioService {
       .plus(valueOfExcludedActivitiesInBaseCurrency)
       .toNumber();
 
-    // Exclude emergency fund from the financial independence calculation
-    const fireWealthInBaseCurrency = new Big(totalAssetsInBaseCurrency).minus(
-      totalEmergencyFund
-    );
+    // Exclude emergency fund and liabilities from the financial independence
+    // calculation so mortgage principal paydown is reflected in FIRE wealth.
+    const fireWealthInBaseCurrency = new Big(totalAssetsInBaseCurrency)
+      .minus(totalEmergencyFund)
+      .minus(liabilities);
 
     const netWorth = new Big(totalAssetsInBaseCurrency)
       .plus(excludedAccountsAndActivities)
