@@ -17,6 +17,103 @@
           <span class="ml-2" matTextSuffix>{{ currency }}</span>
         </mat-form-field>
 
+        @if (
+          hasPermissionToUpdateUserSettings === true ||
+          oneTimeSavings.length > 0
+        ) {
+          <div class="mb-4">
+            @if (oneTimeSavings.length > 0) {
+              <div class="mb-2" formArrayName="oneTimeSavings">
+                @for (
+                  oneTimeSaving of oneTimeSavings.controls;
+                  track oneTimeSaving;
+                  let index = $index
+                ) {
+                  <div
+                    class="align-items-center d-flex"
+                    [formGroupName]="index"
+                  >
+                    <mat-form-field
+                      appearance="outline"
+                      class="flex-grow-1 mr-2"
+                    >
+                      <mat-label i18n>One-Time Savings</mat-label>
+                      <input
+                        formControlName="amount"
+                        matInput
+                        step="1000"
+                        type="number"
+                      />
+                      <span class="ml-2" matTextSuffix>{{ currency }}</span>
+                    </mat-form-field>
+
+                    <mat-form-field
+                      appearance="outline"
+                      class="flex-grow-1 mr-2"
+                    >
+                      <mat-label i18n>Date</mat-label>
+                      <div>{{ getOneTimeSavingLabel(index) }}</div>
+                      <input
+                        class="d-none"
+                        formControlName="date"
+                        matInput
+                        [matDatepicker]="oneTimeSavingDate"
+                        [min]="oneTimeSavingMinDate"
+                      />
+                      <mat-datepicker-toggle
+                        class="mr-2"
+                        matSuffix
+                        [disabled]="hasPermissionToUpdateUserSettings !== true"
+                        [for]="oneTimeSavingDate"
+                      >
+                        <ion-icon
+                          class="text-muted"
+                          matDatepickerToggleIcon
+                          name="calendar-clear-outline"
+                        />
+                      </mat-datepicker-toggle>
+                      <mat-datepicker
+                        #oneTimeSavingDate
+                        startView="multi-year"
+                        [disabled]="hasPermissionToUpdateUserSettings !== true"
+                        (monthSelected)="
+                          setOneTimeSavingMonthAndYear(
+                            $event,
+                            index,
+                            oneTimeSavingDate
+                          )
+                        "
+                      />
+                    </mat-form-field>
+
+                    @if (hasPermissionToUpdateUserSettings === true) {
+                      <button
+                        class="mb-3"
+                        mat-icon-button
+                        type="button"
+                        (click)="onRemoveOneTimeSaving(index)"
+                      >
+                        <ion-icon class="text-muted" name="trash-outline" />
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+            @if (hasPermissionToUpdateUserSettings === true) {
+              <button
+                mat-stroked-button
+                type="button"
+                (click)="onAddOneTimeSaving()"
+              >
+                <ion-icon class="mr-1" name="add-outline" />
+                <span i18n>Add One-Time Savings</span>
+              </button>
+            }
+          </div>
+        }
+
         <mat-form-field appearance="outline" class="w-100">
           <mat-label i18n>Expected Annual Return</mat-label>
           <input

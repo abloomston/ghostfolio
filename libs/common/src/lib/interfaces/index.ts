@@ -18,6 +18,7 @@ import type { EnhancedAssetProfile } from './enhanced-asset-profile.interface';
 import type { FilterGroup } from './filter-group.interface';
 import type { Filter } from './filter.interface';
 import type { FireCalculationCompleteEvent } from './fire-calculation-complete-event.interface';
+import type { FireOneTimeSaving } from './fire-one-time-saving.interface';
 import type { FireWealth } from './fire-wealth.interface';
 import type { HistoricalDataItem } from './historical-data-item.interface';
 import type { HoldingWithParents } from './holding-with-parents.interface';
@@ -149,6 +150,7 @@ export {
   Filter,
   FilterGroup,
   FireCalculationCompleteEvent,
+  FireOneTimeSaving,
   FireWealth,
   HistoricalDataItem,
   HistoricalResponse,

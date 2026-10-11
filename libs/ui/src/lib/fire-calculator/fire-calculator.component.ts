@@ -4,7 +4,10 @@ import {
 } from '@ghostfolio/common/chart-helper';
 import { primaryColorRgb } from '@ghostfolio/common/config';
 import { formatMonthAndYear, getLocale } from '@ghostfolio/common/helper';
-import { FireCalculationCompleteEvent } from '@ghostfolio/common/interfaces';
+import {
+  FireCalculationCompleteEvent,
+  FireOneTimeSaving
+} from '@ghostfolio/common/interfaces';
 import { ColorScheme } from '@ghostfolio/common/types';
 
 import { CommonModule } from '@angular/common';
@@ -22,10 +25,13 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
+  FormArray,
   FormBuilder,
   FormControl,
+  FormGroup,
   FormsModule,
-  ReactiveFormsModule
+  ReactiveFormsModule,
+  Validators
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import {
@@ -52,18 +58,24 @@ import {
   addDays,
   addYears,
   getMonth,
+  isBefore,
   setMonth,
   setYear,
   startOfMonth,
   sub
 } from 'date-fns';
 import { addIcons } from 'ionicons';
-import { calendarClearOutline } from 'ionicons/icons';
+import { addOutline, calendarClearOutline, trashOutline } from 'ionicons/icons';
 import { isNumber } from 'lodash';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { debounceTime } from 'rxjs';
 
 import { FireCalculatorService } from './fire-calculator.service';
+
+interface OneTimeSavingControls {
+  amount: FormControl<number | null>;
+  date: FormControl<Date | null>;
+}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -96,9 +108,14 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
   @Input() retirementDate: Date;
   @Input() savingsRate = 0;
 
+  public readonly oneTimeSavings = new FormArray<
+    FormGroup<OneTimeSavingControls>
+  >([]);
+
   public calculatorForm = this.formBuilder.group({
     expectedInflationRate: new FormControl<number | null>(null),
     expectedReturn: new FormControl<number | null>(null),
+    oneTimeSavings: this.oneTimeSavings,
     paymentPerPeriod: new FormControl<number | null>(null),
     principalInvestmentAmount: new FormControl<number | null>(null),
     projectedTotalAmount: new FormControl<number | null>(null),
@@ -108,6 +125,7 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
   public chart: Chart<'bar'>;
   public isLoading = true;
   public minDate = addDays(new Date(), 1);
+  public oneTimeSavingMinDate = startOfMonth(new Date());
   public periodsToRetire = 0;
 
   protected readonly calculationCompleted =
@@ -142,11 +160,15 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
       Tooltip
     );
 
-    addIcons({ calendarClearOutline });
+    addIcons({ addOutline, calendarClearOutline, trashOutline });
 
     this.calculatorForm.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
+        // Keep the projection in sync with the form, including the one-time
+        // savings which are not stored in the user settings
+        this.periodsToRetire = this.getPeriodsToRetire();
+
         this.initialize();
       });
 
@@ -237,7 +259,9 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
 
   public ngOnChanges() {
     if (isNumber(this.fireWealth) && this.fireWealth >= 0) {
-      this.calculatorForm.setValue(
+      // Use patchValue so that the one-time savings of the current session,
+      // which are not stored in the user settings, are kept
+      this.calculatorForm.patchValue(
         {
           expectedInflationRate: this.expectedInflationRate,
           expectedReturn: this.expectedReturn,
@@ -295,6 +319,7 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
       this.calculatorForm
         .get('projectedTotalAmount')
         ?.enable({ emitEvent: false });
+      this.oneTimeSavings.enable({ emitEvent: false });
     } else {
       this.calculatorForm
         .get('expectedInflationRate')
@@ -306,9 +331,45 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
       this.calculatorForm
         .get('projectedTotalAmount')
         ?.disable({ emitEvent: false });
+      this.oneTimeSavings.disable({ emitEvent: false });
     }
 
     this.calculatorForm.get('retirementDate')?.disable({ emitEvent: false });
+  }
+
+  public onAddOneTimeSaving() {
+    this.oneTimeSavings.push(this.createOneTimeSaving());
+    this.changeDetectorRef.markForCheck();
+  }
+
+  public onRemoveOneTimeSaving(index: number) {
+    this.oneTimeSavings.removeAt(index);
+    this.changeDetectorRef.markForCheck();
+  }
+
+  public setOneTimeSavingMonthAndYear(
+    normalizedMonthAndYear: Date,
+    index: number,
+    datepicker: MatDatepicker<Date>
+  ) {
+    const date =
+      this.oneTimeSavings.at(index)?.get('date')?.value ??
+      this.oneTimeSavingMinDate;
+    const newDate = setMonth(
+      setYear(date, normalizedMonthAndYear.getFullYear()),
+      normalizedMonthAndYear.getMonth()
+    );
+
+    this.oneTimeSavings
+      .at(index)
+      ?.get('date')
+      ?.setValue(
+        isBefore(newDate, this.oneTimeSavingMinDate)
+          ? this.oneTimeSavingMinDate
+          : newDate
+      );
+
+    datepicker.close();
   }
 
   public setMonthAndYear(
@@ -328,6 +389,30 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
 
   public ngOnDestroy() {
     this.chart?.destroy();
+  }
+
+  protected getOneTimeSavingLabel(index: number): string {
+    const date = this.oneTimeSavings.at(index)?.get('date')?.value;
+
+    if (!date) {
+      return '';
+    }
+
+    if (this.fireCalculatorService.getMonthsFromNow({ date }) === 0) {
+      return $localize`Right now`;
+    }
+
+    return formatMonthAndYear({
+      date,
+      locale: this.locale
+    });
+  }
+
+  private createOneTimeSaving(): FormGroup<OneTimeSavingControls> {
+    return this.formBuilder.group<OneTimeSavingControls>({
+      amount: new FormControl<number | null>(null, [Validators.min(0)]),
+      date: new FormControl<Date | null>(this.oneTimeSavingMinDate)
+    });
   }
 
   private initialize() {
@@ -429,6 +514,9 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
     // Annual interest rate
     const r: number = this.getR();
 
+    // One-time savings (lump sums)
+    const oneTimeSavings = this.getOneTimeSavings();
+
     // Calculate retirement date
     // if we want to retire at month x, we need the projectedTotalAmount at month x-1
     const lastPeriodDate = sub(this.getRetirementDate(), { months: 1 });
@@ -468,6 +556,16 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
       label: $localize`Savings`
     };
 
+    const datasetOneTimeSavings: ChartDataset<'bar'> = {
+      backgroundColor: Color(
+        `rgb(${primaryColorRgb.r}, ${primaryColorRgb.g}, ${primaryColorRgb.b})`
+      )
+        .lighten(0.375)
+        .hex(),
+      data: [],
+      label: $localize`One-Time Savings`
+    };
+
     const monthsPassedInCurrentYear = getMonth(new Date());
     const expectedInflationRate = this.getExpectedInflationRate();
 
@@ -477,10 +575,18 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
       const { interest, principal } =
         this.fireCalculatorService.calculateCompoundInterest({
           P,
+          oneTimeSavings,
           periodInMonths,
           PMT,
           r
         });
+
+      const oneTimeSavingsPrincipal =
+        this.fireCalculatorService.calculateOneTimeSavings({
+          oneTimeSavings,
+          periodInMonths,
+          r
+        }).principal;
 
       datasetDeposit.data.push(
         this.fireCalculatorService
@@ -503,7 +609,19 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
       datasetSavings.data.push(
         this.fireCalculatorService
           .calculatePresentValue({
-            amount: principal.minus(this.fireWealth).toNumber(),
+            amount: principal
+              .minus(P)
+              .minus(oneTimeSavingsPrincipal)
+              .toNumber(),
+            expectedInflationRate,
+            periodInMonths
+          })
+          .toNumber()
+      );
+      datasetOneTimeSavings.data.push(
+        this.fireCalculatorService
+          .calculatePresentValue({
+            amount: oneTimeSavingsPrincipal.toNumber(),
             expectedInflationRate,
             periodInMonths
           })
@@ -513,12 +631,23 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
 
     return {
       labels,
-      datasets: [datasetDeposit, datasetSavings, datasetInterest]
+      datasets: [
+        datasetDeposit,
+        datasetSavings,
+        datasetOneTimeSavings,
+        datasetInterest
+      ]
     };
   }
 
   private getP() {
     return this.fireWealth || 0;
+  }
+
+  private getOneTimeSavings(): FireOneTimeSaving[] {
+    return this.fireCalculatorService.toOneTimeSavings({
+      savings: this.oneTimeSavings.getRawValue()
+    });
   }
 
   private getPeriodsToRetire(): number {
@@ -529,6 +658,7 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
     if (projectedTotalAmount) {
       let periods = this.fireCalculatorService.calculatePeriodsToRetire({
         P: this.getP(),
+        oneTimeSavings: this.getOneTimeSavings(),
         PMT: this.getPMT(),
         r: this.getR(),
         totalAmount: projectedTotalAmount
@@ -582,6 +712,7 @@ export class GfFireCalculatorComponent implements OnChanges, OnDestroy {
     const { totalAmount } =
       this.fireCalculatorService.calculateCompoundInterest({
         P: this.getP(),
+        oneTimeSavings: this.getOneTimeSavings(),
         periodInMonths: this.periodsToRetire,
         PMT: this.getPMT(),
         r: this.getR()
