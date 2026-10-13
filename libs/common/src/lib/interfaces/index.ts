@@ -19,6 +19,11 @@ import type { FilterGroup } from './filter-group.interface';
 import type { Filter } from './filter.interface';
 import type { FireCalculationCompleteEvent } from './fire-calculation-complete-event.interface';
 import type { FireOneTimeSaving } from './fire-one-time-saving.interface';
+import type {
+  FireProjection,
+  FireProjectionAmounts,
+  FireProjectionYear
+} from './fire-projection.interface';
 import type { FireWealth } from './fire-wealth.interface';
 import type { HistoricalDataItem } from './historical-data-item.interface';
 import type { HoldingWithParents } from './holding-with-parents.interface';
@@ -151,6 +156,9 @@ export {
   FilterGroup,
   FireCalculationCompleteEvent,
   FireOneTimeSaving,
+  FireProjection,
+  FireProjectionAmounts,
+  FireProjectionYear,
   FireWealth,
   HistoricalDataItem,
   HistoricalResponse,

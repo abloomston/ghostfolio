@@ -9,7 +9,8 @@ import {
   DEFAULT_LANGUAGE_CODE,
   MCP_MAX_ACTIVITIES
 } from '@ghostfolio/common/config';
-import { Activity, Filter } from '@ghostfolio/common/interfaces';
+import { DATE_FORMAT } from '@ghostfolio/common/helper';
+import { Activity, Filter, UserSettings } from '@ghostfolio/common/interfaces';
 import { permissions } from '@ghostfolio/common/permissions';
 import type { UserWithSettings } from '@ghostfolio/common/types';
 
@@ -20,7 +21,10 @@ import {
   DataSource,
   Type as ActivityType
 } from '@prisma/client';
+import { addMonths, addYears, format, startOfMonth } from 'date-fns';
+import { z } from 'zod';
 
+import { CALCULATE_FIRE_PROJECTION_PARAMETERS } from './mcp.schemas';
 import { McpService } from './mcp.service';
 import { createActivity } from './mcp.test-utils';
 
@@ -209,6 +213,204 @@ describe('McpService', () => {
       expect(portfolioTableService.getWatchlistTable).toHaveBeenCalledWith({
         userId
       });
+    });
+  });
+
+  describe('getFireAssumptions', () => {
+    const userSettings = {
+      annualInterestRate: 7,
+      baseCurrency: 'USD',
+      cashInterestRate: 1.5,
+      expectedInflationRate: 2.5,
+      projectedTotalAmount: 1000000,
+      retirementDate: '2036-05-01',
+      safeWithdrawalRate: 0.035,
+      savingsRate: 2000
+    } as UserSettings;
+
+    it('Gives the rates in percentage and the retirement date of the month', () => {
+      expect(
+        JSON.parse(
+          mcpService.getFireAssumptions({ userSettings }).content[0].text
+        )
+      ).toEqual({
+        baseCurrency: 'USD',
+        cashInterestRateInPercentage: 1.5,
+        expectedInflationRateInPercentage: 2.5,
+        expectedReturnInPercentage: 7,
+        retirementDate: '2036-05-01',
+        safeWithdrawalRateInPercentage: 3.5
+      });
+    });
+
+    // An access of the model context protocol never reads the monetary values,
+    // hence the projection has to get them from the client
+    it('Gives no monetary assumption', () => {
+      const assumptions = JSON.parse(
+        mcpService.getFireAssumptions({ userSettings }).content[0].text
+      );
+
+      expect(Object.keys(assumptions)).toEqual([
+        'baseCurrency',
+        'cashInterestRateInPercentage',
+        'expectedInflationRateInPercentage',
+        'expectedReturnInPercentage',
+        'retirementDate',
+        'safeWithdrawalRateInPercentage'
+      ]);
+    });
+
+    it('Gives null for an assumption which the user has not saved', () => {
+      expect(
+        JSON.parse(
+          mcpService.getFireAssumptions({
+            userSettings: { baseCurrency: 'USD' } as UserSettings
+          }).content[0].text
+        )
+      ).toEqual({
+        baseCurrency: 'USD',
+        cashInterestRateInPercentage: null,
+        expectedInflationRateInPercentage: null,
+        expectedReturnInPercentage: null,
+        retirementDate: null,
+        safeWithdrawalRateInPercentage: null
+      });
+    });
+  });
+
+  describe('calculateFireProjection', () => {
+    const userSettings = {
+      annualInterestRate: 7,
+      baseCurrency: 'USD',
+      expectedInflationRate: 2.5,
+      projectedTotalAmount: 1000000,
+      retirementDate: format(addYears(new Date(), 10), DATE_FORMAT),
+      safeWithdrawalRate: 0.04,
+      savingsRate: 2000
+    } as UserSettings;
+
+    function calculate(
+      parameters: Partial<
+        z.infer<typeof CALCULATE_FIRE_PROJECTION_PARAMETERS>
+      > = {}
+    ) {
+      return JSON.parse(
+        mcpService.calculateFireProjection({
+          paymentPerPeriod: 1000,
+          principalInvestmentAmount: 100000,
+          userSettings,
+          ...parameters
+        }).content[0].text
+      );
+    }
+
+    it('Falls back to the assumptions the user has saved', () => {
+      const projection = calculate();
+
+      expect(projection.baseCurrency).toEqual('USD');
+      expect(projection.assumptions).toEqual({
+        expectedInflationRateInPercentage: 2.5,
+        expectedReturnInPercentage: 7,
+        oneTimeSavings: [],
+        paymentPerPeriod: 1000,
+        principalInvestmentAmount: 100000,
+        safeWithdrawalRateInPercentage: 4
+      });
+      expect(projection.horizon.mode).toEqual('retirement-date');
+      expect(projection.horizon.retirementDate).toEqual(
+        format(startOfMonth(addYears(new Date(), 10)), DATE_FORMAT)
+      );
+    });
+
+    it('Prefers the parameters over the assumptions the user has saved', () => {
+      const projection = calculate({
+        expectedInflationRateInPercentage: 0,
+        expectedReturnInPercentage: 0,
+        monthsToRetire: 12,
+        safeWithdrawalRateInPercentage: 3
+      });
+
+      expect(projection.horizon.mode).toEqual('months');
+      expect(projection.atRetirement.amounts).toEqual({
+        contributions: 12000,
+        deposits: 100000,
+        interest: 0,
+        oneTimeSavings: 0,
+        totalAmount: 112000
+      });
+      expect(projection.atRetirement.income.perYear).toEqual(3360);
+      expect(projection.atRetirement.income.perMonth).toEqual(280);
+      expect(projection.incomeToday).toEqual({
+        perMonth: 250,
+        perYear: 3000
+      });
+    });
+
+    it('Gives the income of the projected amount and the composition of it', () => {
+      const projection = calculate({
+        expectedInflationRateInPercentage: 0,
+        expectedReturnInPercentage: 6,
+        monthsToRetire: 240,
+        safeWithdrawalRateInPercentage: 4
+      });
+
+      const { amounts, income } = projection.atRetirement;
+
+      expect(
+        amounts.deposits +
+          amounts.contributions +
+          amounts.oneTimeSavings +
+          amounts.interest
+      ).toBeCloseTo(amounts.totalAmount, 1);
+      expect(income.perYear).toBeCloseTo(amounts.totalAmount * 0.04, 1);
+      expect(income.perMonth).toBeCloseTo(income.perYear / 12, 2);
+    });
+
+    it('Reads no monetary value of the portfolio', () => {
+      calculate();
+
+      expect(portfolioTableService.getHoldingsTable).not.toHaveBeenCalled();
+      expect(portfolioTableService.getAccountsTable).not.toHaveBeenCalled();
+      expect(userService.user).not.toHaveBeenCalled();
+    });
+
+    it('Maps the month of a one-time saving', () => {
+      const projection = calculate({
+        expectedReturnInPercentage: 0,
+        monthsToRetire: 6,
+        oneTimeSavings: [
+          {
+            amount: 10000,
+            date: format(addMonths(new Date(), 6), DATE_FORMAT)
+          }
+        ],
+        paymentPerPeriod: 0,
+        principalInvestmentAmount: 0
+      });
+
+      expect(projection.assumptions.oneTimeSavings).toEqual([
+        { amount: 10000, monthsFromNow: 6 }
+      ]);
+      expect(projection.atRetirement.amounts.totalAmount).toEqual(10000);
+    });
+
+    it('Reports an unreachable target amount', () => {
+      const projection = calculate({
+        expectedReturnInPercentage: 0,
+        paymentPerPeriod: 0,
+        principalInvestmentAmount: 1000,
+        targetAmount: 1000000
+      });
+
+      expect(projection.horizon).toEqual({
+        isReachable: false,
+        mode: 'target-amount',
+        monthsToRetire: null,
+        retirementDate: null,
+        targetAmount: 1000000,
+        yearsToRetire: null
+      });
+      expect(projection.atRetirement.amounts).toBeNull();
     });
   });
 

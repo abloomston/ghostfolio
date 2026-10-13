@@ -13,6 +13,7 @@ import { z } from 'zod';
 import 'zod/compile';
 
 import {
+  CALCULATE_FIRE_PROJECTION_PARAMETERS,
   GET_ACCOUNTS_PARAMETERS,
   GET_ACTIVITIES_PARAMETERS,
   IMPORT_ACTIVITIES_PARAMETERS,
@@ -24,6 +25,28 @@ import { McpService } from './mcp.service';
 @UseFilters(McpToolExceptionFilter)
 export class GhostfolioMcpController {
   public constructor(private readonly mcpService: McpService) {}
+
+  @RequiresScopeOfAccess(scopes.portfolioRead)
+  @Tool({
+    annotations: {
+      openWorldHint: false,
+      readOnlyHint: true,
+      title: 'Calculate the projection of the FIRE calculator'
+    },
+    description: `Projects the FIRE (financial independence, retire early) calculator and gives the projected amount and the retirement income at retirement, so that the impact of each assumption can be seen. The investment amount, the savings per month, the one-time savings and the target amount have to be given as parameters, because an access never reads the monetary values of the portfolio: ask the user for them. The expected annual return, the expected annual inflation, the safe withdrawal rate and the retirement date default to the assumptions the user has saved, which get-fire-assumptions gives. The horizon of the projection is the target amount, else the number of months, else the retirement date, and an unreachable target is reported with "isReachable: false". Every amount is in the currency of the parameters; the amounts in today’s dollars are discounted by the expected annual inflation.`,
+    name: 'calculate-fire-projection',
+    parameters: CALCULATE_FIRE_PROJECTION_PARAMETERS
+  })
+  public calculateFireProjection(
+    @Impersonation() { userSettings }: ImpersonationContext,
+    @Payload()
+    parameters: z.infer<typeof CALCULATE_FIRE_PROJECTION_PARAMETERS>
+  ) {
+    return this.mcpService.calculateFireProjection({
+      ...parameters,
+      userSettings
+    });
+  }
 
   @RequiresScopeOfAccess(scopes.accountRead)
   @Tool({
@@ -67,6 +90,23 @@ export class GhostfolioMcpController {
       userId,
       userCurrency: userSettings.baseCurrency
     });
+  }
+
+  @RequiresScopeOfAccess(scopes.portfolioRead)
+  @Tool({
+    annotations: {
+      openWorldHint: false,
+      readOnlyHint: true,
+      title: 'Get the assumptions of the FIRE calculator'
+    },
+    description:
+      'Gives the assumptions of the FIRE (financial independence, retire early) calculator which the user has saved: the expected annual return, the expected annual inflation, the safe withdrawal rate, the interest rate for cash and the retirement date. The monetary assumptions (the investment amount, the savings per month and the target amount) are not given, because an access never reads the monetary values of the portfolio: ask the user for them and pass them to calculate-fire-projection.',
+    name: 'get-fire-assumptions'
+  })
+  public getFireAssumptions(
+    @Impersonation() { userSettings }: ImpersonationContext
+  ) {
+    return this.mcpService.getFireAssumptions({ userSettings });
   }
 
   @RequiresScopeOfAccess(scopes.portfolioRead)

@@ -374,7 +374,7 @@ Grant access of type _Public_ in the _Access_ tab of _My Ghostfolio_.
 
 ## Model Context Protocol (experimental)
 
-The _Model Context Protocol_ (MCP) server lets an AI client read your portfolio and import activities into it.
+The _Model Context Protocol_ (MCP) server lets an AI client read your portfolio, import activities into it and project the FIRE calculator.
 
 ### Prerequisites
 
@@ -383,6 +383,8 @@ The _Model Context Protocol_ (MCP) server lets an AI client read your portfolio 
 - Grant an access of the type _MCP_ in _My Ghostfolio_ under _Access_ and copy its token
 
 An _MCP_ access has (restricted) read scopes and never reads the monetary values. Grant the _Restricted view and manage_ permission to let the client also import activities.
+
+The FIRE calculator tools give the projected amount and the retirement income of an assumption analysis: the rates and the retirement date come from your settings, while the investment amount, the savings per month, the one-time savings and the target amount are parameters of the tool, because an _MCP_ access never reads the monetary values.
 
 ### Connect a client
 

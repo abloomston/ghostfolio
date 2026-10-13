@@ -10,18 +10,42 @@ import { ConfigurationService } from '@ghostfolio/api/services/configuration/con
 import { PortfolioTableService } from '@ghostfolio/api/services/portfolio-table/portfolio-table.service';
 import { getIntervalFromDateRange } from '@ghostfolio/common/calculation-helper';
 import { DEFAULT_LANGUAGE_CODE } from '@ghostfolio/common/config';
+import { calculateFireProjection } from '@ghostfolio/common/fire-calculator.helper';
+import { DATE_FORMAT } from '@ghostfolio/common/helper';
+import { UserSettings } from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
 
 import { HttpException, Injectable } from '@nestjs/common';
+import { format, isValid, parseISO } from 'date-fns';
 import { getReasonPhrase, StatusCodes } from 'http-status-codes';
+import { isNumber } from 'lodash';
 import { z } from 'zod';
 
 import {
+  CALCULATE_FIRE_PROJECTION_PARAMETERS,
   GET_ACCOUNTS_PARAMETERS,
   GET_ACTIVITIES_PARAMETERS,
   IMPORT_ACTIVITIES_PARAMETERS,
   SEARCH_ASSET_PROFILES_PARAMETERS
 } from './mcp.schemas';
+
+function getDate(value?: string | null): Date | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = parseISO(value);
+
+  return isValid(date) ? date : undefined;
+}
+
+/**
+ * Gives a rate stored as a fraction, such as the safe withdrawal rate, in
+ * percentage, which is the unit of the parameters of the tools
+ */
+function toPercentage(value?: number): number | undefined {
+  return isNumber(value) ? Math.round(value * 10000) / 100 : undefined;
+}
 
 @Injectable()
 export class McpService {
@@ -106,6 +130,86 @@ export class McpService {
     return this.getTextResult(table);
   }
 
+  /**
+   * Projects the FIRE calculator with the parameters of the tool, where the
+   * assumptions which are no monetary value fall back to the settings of the
+   * user. The investment amount, the savings per month and the target amount
+   * are never taken from the portfolio, because an access of the model context
+   * protocol gives no monetary values.
+   */
+  public calculateFireProjection({
+    expectedInflationRateInPercentage,
+    expectedReturnInPercentage,
+    monthsToRetire,
+    oneTimeSavings,
+    paymentPerPeriod,
+    principalInvestmentAmount,
+    retirementDate,
+    safeWithdrawalRateInPercentage,
+    targetAmount,
+    userSettings
+  }: z.infer<typeof CALCULATE_FIRE_PROJECTION_PARAMETERS> & {
+    userSettings: UserSettings;
+  }) {
+    const projection = calculateFireProjection({
+      expectedInflationRateInPercentage:
+        expectedInflationRateInPercentage ??
+        userSettings.expectedInflationRate ??
+        0,
+      expectedReturnInPercentage:
+        expectedReturnInPercentage ?? userSettings.annualInterestRate ?? 0,
+      monthsToRetire,
+      oneTimeSavings: (oneTimeSavings ?? []).map(({ amount, date }) => {
+        return { amount, date: getDate(date) };
+      }),
+      paymentPerPeriod,
+      principalInvestmentAmount,
+      retirementDate:
+        getDate(retirementDate) ?? getDate(userSettings.retirementDate),
+      safeWithdrawalRateInPercentage:
+        safeWithdrawalRateInPercentage ??
+        toPercentage(userSettings.safeWithdrawalRate),
+      targetAmount
+    });
+
+    return this.getTextResult(
+      JSON.stringify(
+        {
+          baseCurrency: userSettings.baseCurrency,
+          ...projection
+        },
+        null,
+        2
+      )
+    );
+  }
+
+  /**
+   * Gives the assumptions of the FIRE calculator which the user has saved and
+   * which are no monetary value, hence which the access may read
+   */
+  public getFireAssumptions({ userSettings }: { userSettings: UserSettings }) {
+    const dateOfRetirementDate = getDate(userSettings.retirementDate);
+
+    return this.getTextResult(
+      JSON.stringify(
+        {
+          baseCurrency: userSettings.baseCurrency,
+          cashInterestRateInPercentage: userSettings.cashInterestRate ?? null,
+          expectedInflationRateInPercentage:
+            userSettings.expectedInflationRate ?? null,
+          expectedReturnInPercentage: userSettings.annualInterestRate ?? null,
+          retirementDate: dateOfRetirementDate
+            ? format(dateOfRetirementDate, DATE_FORMAT)
+            : null,
+          safeWithdrawalRateInPercentage:
+            toPercentage(userSettings.safeWithdrawalRate) ?? null
+        },
+        null,
+        2
+      )
+    );
+  }
   public async getWatchlist({ userId }: { userId: string }) {
     const table = await this.portfolioTableService.getWatchlistTable({
       userId
