@@ -72,14 +72,16 @@ export const CALCULATE_FIRE_PROJECTION_PARAMETERS = z.object({
   paymentPerPeriod: z
     .number()
     .min(0)
+    .optional()
     .describe(
-      'The savings per month, which are contributed at the end of every month. Ask the user for the amount, because an access never reads the monetary values of the portfolio.'
+      'The savings per month, which are contributed at the end of every month. Defaults to the savings rate the user has saved, and to 0 if the access does not read the monetary values.'
     ),
   principalInvestmentAmount: z
     .number()
     .min(0)
+    .optional()
     .describe(
-      'The investment amount today, which is the value of the portfolio without the emergency fund, in the same currency as the savings per month. Ask the user for the amount, because an access never reads the monetary values of the portfolio.'
+      'The investment amount today, which is the value of the portfolio without the emergency fund, in the same currency as the savings per month. Defaults to the FIRE wealth of the portfolio if the access reads the monetary values, else to 0.'
     ),
   retirementDate: z
     .string()
@@ -101,7 +103,7 @@ export const CALCULATE_FIRE_PROJECTION_PARAMETERS = z.object({
     .min(0)
     .optional()
     .describe(
-      'The amount the portfolio should reach, in future dollars. If it is given, the horizon of the projection is the time until the amount is reached.'
+      'The amount the portfolio should reach, in future dollars. If it is given, the horizon of the projection is the time until the amount is reached. Defaults to the projected total amount the user has saved, unless the number of months or the retirement date is given.'
     )
 });
 

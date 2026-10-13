@@ -1,4 +1,5 @@
 import { ImportService } from '@ghostfolio/api/app/import/import.service';
+import { PortfolioService } from '@ghostfolio/api/app/portfolio/portfolio.service';
 import { SymbolService } from '@ghostfolio/api/app/symbol/symbol.service';
 import { UserService } from '@ghostfolio/api/app/user/user.service';
 import {
@@ -10,10 +11,13 @@ import { ConfigurationService } from '@ghostfolio/api/services/configuration/con
 import { PortfolioTableService } from '@ghostfolio/api/services/portfolio-table/portfolio-table.service';
 import { getIntervalFromDateRange } from '@ghostfolio/common/calculation-helper';
 import { DEFAULT_LANGUAGE_CODE } from '@ghostfolio/common/config';
+import { SubscriptionType } from '@ghostfolio/common/enums';
 import { calculateFireProjection } from '@ghostfolio/common/fire-calculator.helper';
 import { DATE_FORMAT } from '@ghostfolio/common/helper';
 import { UserSettings } from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
+import { hasScope, scopes } from '@ghostfolio/common/scopes';
+import type { UserWithSettings } from '@ghostfolio/common/types';
 
 import { HttpException, Injectable } from '@nestjs/common';
 import { format, isValid, parseISO } from 'date-fns';
@@ -47,12 +51,31 @@ function toPercentage(value?: number): number | undefined {
   return isNumber(value) ? Math.round(value * 10000) / 100 : undefined;
 }
 
+/**
+ * Gives the cents of a monetary amount, so that the tools do not give the
+ * floating point noise of the portfolio calculation
+ */
+function roundAmount(value?: number): number | undefined {
+  return isNumber(value) ? Math.round(value * 100) / 100 : undefined;
+}
+
+/**
+ * The monetary amounts of the FIRE calculator which the tools give only to an
+ * access which reads the monetary values
+ */
+interface FireAmounts {
+  paymentPerPeriod?: number;
+  principalInvestmentAmount?: number;
+  targetAmount?: number;
+}
+
 @Injectable()
 export class McpService {
   public constructor(
     private readonly apiService: ApiService,
     private readonly configurationService: ConfigurationService,
     private readonly importService: ImportService,
+    private readonly portfolioService: PortfolioService,
     private readonly portfolioTableService: PortfolioTableService,
     private readonly symbolService: SymbolService,
     private readonly userService: UserService
@@ -131,15 +154,15 @@ export class McpService {
   }
 
   /**
-   * Projects the FIRE calculator with the parameters of the tool, where the
-   * assumptions which are no monetary value fall back to the settings of the
-   * user. The investment amount, the savings per month and the target amount
-   * are never taken from the portfolio, because an access of the model context
-   * protocol gives no monetary values.
+   * Projects the FIRE calculator. The assumptions which are no monetary value
+   * fall back to the settings of the user. The amounts (the investment amount,
+   * the savings per month and the target amount) come from the parameters and
+   * else, if the access reads the monetary values, from the portfolio.
    */
-  public calculateFireProjection({
+  public async calculateFireProjection({
     expectedInflationRateInPercentage,
     expectedReturnInPercentage,
+    impersonationScopes,
     monthsToRetire,
     oneTimeSavings,
     paymentPerPeriod,
@@ -147,10 +170,23 @@ export class McpService {
     retirementDate,
     safeWithdrawalRateInPercentage,
     targetAmount,
-    userSettings
+    userId,
+    userSettings,
+    userSubscription
   }: z.infer<typeof CALCULATE_FIRE_PROJECTION_PARAMETERS> & {
+    impersonationScopes: string[];
+    userId: string;
     userSettings: UserSettings;
+    userSubscription?: UserWithSettings['subscription'];
   }) {
+    const amounts: FireAmounts = this.canReadMonetaryValues({
+      impersonationScopes,
+      userSettings,
+      userSubscription
+    })
+      ? await this.getFireAmounts({ userId, userSettings })
+      : {};
+
     const projection = calculateFireProjection({
       expectedInflationRateInPercentage:
         expectedInflationRateInPercentage ??
@@ -162,14 +198,21 @@ export class McpService {
       oneTimeSavings: (oneTimeSavings ?? []).map(({ amount, date }) => {
         return { amount, date: getDate(date) };
       }),
-      paymentPerPeriod,
-      principalInvestmentAmount,
+      paymentPerPeriod: paymentPerPeriod ?? amounts.paymentPerPeriod ?? 0,
+      principalInvestmentAmount:
+        principalInvestmentAmount ?? amounts.principalInvestmentAmount ?? 0,
       retirementDate:
         getDate(retirementDate) ?? getDate(userSettings.retirementDate),
       safeWithdrawalRateInPercentage:
         safeWithdrawalRateInPercentage ??
         toPercentage(userSettings.safeWithdrawalRate),
-      targetAmount
+      // The target amount which the user has saved is only the horizon of the
+      // projection if the parameters give no horizon themselves
+      targetAmount:
+        targetAmount ??
+        (monthsToRetire === undefined && retirementDate === undefined
+          ? amounts.targetAmount
+          : undefined)
     });
 
     return this.getTextResult(
@@ -185,10 +228,29 @@ export class McpService {
   }
 
   /**
-   * Gives the assumptions of the FIRE calculator which the user has saved and
-   * which are no monetary value, hence which the access may read
+   * Gives the assumptions of the FIRE calculator which the access may read:
+   * the rates and the retirement date always, the amounts only if the access
+   * reads the monetary values
    */
-  public getFireAssumptions({ userSettings }: { userSettings: UserSettings }) {
+  public async getFireAssumptions({
+    impersonationScopes,
+    userId,
+    userSettings,
+    userSubscription
+  }: {
+    impersonationScopes: string[];
+    userId: string;
+    userSettings: UserSettings;
+    userSubscription?: UserWithSettings['subscription'];
+  }) {
+    const amounts: FireAmounts = this.canReadMonetaryValues({
+      impersonationScopes,
+      userSettings,
+      userSubscription
+    })
+      ? await this.getFireAmounts({ userId, userSettings })
+      : {};
+
     const dateOfRetirementDate = getDate(userSettings.retirementDate);
 
     return this.getTextResult(
@@ -199,17 +261,21 @@ export class McpService {
           expectedInflationRateInPercentage:
             userSettings.expectedInflationRate ?? null,
           expectedReturnInPercentage: userSettings.annualInterestRate ?? null,
+          paymentPerPeriod: amounts.paymentPerPeriod ?? null,
+          principalInvestmentAmount: amounts.principalInvestmentAmount ?? null,
           retirementDate: dateOfRetirementDate
             ? format(dateOfRetirementDate, DATE_FORMAT)
             : null,
           safeWithdrawalRateInPercentage:
-            toPercentage(userSettings.safeWithdrawalRate) ?? null
+            toPercentage(userSettings.safeWithdrawalRate) ?? null,
+          targetAmount: amounts.targetAmount ?? null
         },
         null,
         2
       )
     );
   }
+
   public async getWatchlist({ userId }: { userId: string }) {
     const table = await this.portfolioTableService.getWatchlistTable({
       userId
@@ -312,6 +378,62 @@ export class McpService {
     );
 
     return this.getTextResult(JSON.stringify({ assetProfiles }, null, 2));
+  }
+
+  /**
+   * Gives whether the tools may read the monetary values, which follows the
+   * endpoints of the portfolio: the access needs the scope to read them, the
+   * user has to give no restricted view and, where the subscription is
+   * enabled, has to be a premium subscriber
+   */
+  private canReadMonetaryValues({
+    impersonationScopes,
+    userSettings,
+    userSubscription
+  }: {
+    impersonationScopes: string[];
+    userSettings: UserSettings;
+    userSubscription?: UserWithSettings['subscription'];
+  }) {
+    if (!hasScope(impersonationScopes, scopes.portfolioReadValues)) {
+      return false;
+    } else if (userSettings.isRestrictedView) {
+      return false;
+    } else if (
+      this.configurationService.get('ENABLE_FEATURE_SUBSCRIPTION') &&
+      userSubscription?.type !== SubscriptionType.Premium
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Gives the amounts of the FIRE calculator which the portfolio and the
+   * settings of the user provide: the FIRE wealth, which is the value of the
+   * portfolio without the emergency fund, the savings per month and the target
+   * amount
+   */
+  private async getFireAmounts({
+    userId,
+    userSettings
+  }: {
+    userId: string;
+    userSettings: UserSettings;
+  }): Promise<FireAmounts> {
+    const { summary } = await this.portfolioService.getDetails({
+      userId,
+      withSummary: true
+    });
+
+    return {
+      paymentPerPeriod: roundAmount(userSettings.savingsRate),
+      principalInvestmentAmount: roundAmount(
+        summary?.fireWealth?.today?.valueInBaseCurrency
+      ),
+      targetAmount: roundAmount(userSettings.projectedTotalAmount)
+    };
   }
 
   private getTextResult(text: string) {

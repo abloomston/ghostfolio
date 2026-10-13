@@ -33,18 +33,27 @@ export class GhostfolioMcpController {
       readOnlyHint: true,
       title: 'Calculate the projection of the FIRE calculator'
     },
-    description: `Projects the FIRE (financial independence, retire early) calculator and gives the projected amount and the retirement income at retirement, so that the impact of each assumption can be seen. The investment amount, the savings per month, the one-time savings and the target amount have to be given as parameters, because an access never reads the monetary values of the portfolio: ask the user for them. The expected annual return, the expected annual inflation, the safe withdrawal rate and the retirement date default to the assumptions the user has saved, which get-fire-assumptions gives. The horizon of the projection is the target amount, else the number of months, else the retirement date, and an unreachable target is reported with "isReachable: false". Every amount is in the currency of the parameters; the amounts in today’s dollars are discounted by the expected annual inflation.`,
+    description: `Projects the FIRE (financial independence, retire early) calculator and gives the projected amount and the retirement income at retirement, so that the impact of each assumption can be seen. The investment amount (the value of the portfolio without the emergency fund), the savings per month and the target amount default to the values of the user if the access reads the monetary values, else they are 0 and absent and have to be given as parameters: ask the user for them. The expected annual return, the expected annual inflation, the safe withdrawal rate and the retirement date always default to the assumptions the user has saved, which get-fire-assumptions gives. The horizon of the projection is the number of months, else the target amount, else the retirement date, and an unreachable target is reported with "isReachable: false". Every amount is in the currency of the parameters or the base currency of the user; the amounts in today’s dollars are discounted by the expected annual inflation.`,
     name: 'calculate-fire-projection',
     parameters: CALCULATE_FIRE_PROJECTION_PARAMETERS
   })
-  public calculateFireProjection(
-    @Impersonation() { userSettings }: ImpersonationContext,
+  public async calculateFireProjection(
+    @Impersonation()
+    {
+      scopes: impersonationScopes,
+      userId,
+      userSettings,
+      userSubscription
+    }: ImpersonationContext,
     @Payload()
     parameters: z.infer<typeof CALCULATE_FIRE_PROJECTION_PARAMETERS>
   ) {
     return this.mcpService.calculateFireProjection({
       ...parameters,
-      userSettings
+      impersonationScopes,
+      userId,
+      userSettings,
+      userSubscription
     });
   }
 
@@ -100,13 +109,24 @@ export class GhostfolioMcpController {
       title: 'Get the assumptions of the FIRE calculator'
     },
     description:
-      'Gives the assumptions of the FIRE (financial independence, retire early) calculator which the user has saved: the expected annual return, the expected annual inflation, the safe withdrawal rate, the interest rate for cash and the retirement date. The monetary assumptions (the investment amount, the savings per month and the target amount) are not given, because an access never reads the monetary values of the portfolio: ask the user for them and pass them to calculate-fire-projection.',
+      'Gives the assumptions of the FIRE (financial independence, retire early) calculator: the expected annual return, the expected annual inflation, the safe withdrawal rate, the interest rate for cash and the retirement date which the user has saved, and – if the access reads the monetary values – the investment amount (the value of the portfolio without the emergency fund), the savings per month and the target amount, in the base currency of the user. The amounts are null for an access which does not read the monetary values: ask the user for them and pass them to calculate-fire-projection.',
     name: 'get-fire-assumptions'
   })
-  public getFireAssumptions(
-    @Impersonation() { userSettings }: ImpersonationContext
+  public async getFireAssumptions(
+    @Impersonation()
+    {
+      scopes: impersonationScopes,
+      userId,
+      userSettings,
+      userSubscription
+    }: ImpersonationContext
   ) {
-    return this.mcpService.getFireAssumptions({ userSettings });
+    return this.mcpService.getFireAssumptions({
+      impersonationScopes,
+      userId,
+      userSettings,
+      userSubscription
+    });
   }
 
   @RequiresScopeOfAccess(scopes.portfolioRead)

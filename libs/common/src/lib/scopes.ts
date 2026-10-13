@@ -69,10 +69,18 @@ export const SCOPES_OF_READ_RESTRICTED_ACCESS: readonly Scope[] =
  * monetary values.
  */
 const SCOPES_OF_TYPE: Record<AccessType, readonly Scope[]> = {
-  MCP: [...SCOPES_OF_READ_RESTRICTED_ACCESS, scopes.activityCreate],
+  MCP: [...SCOPES_OF_READ_ACCESS, scopes.activityCreate],
   PRIVATE: Object.values(scopes),
   PUBLIC: SCOPES_OF_PUBLIC_ACCESS
 };
+
+/**
+ * Access types which can be granted the monetary values, hence which offer
+ * more than the restricted access levels
+ */
+export function canGrantMonetaryValues({ type }: { type: AccessType }) {
+  return SCOPES_OF_TYPE[type].includes(scopes.portfolioReadValues);
+}
 
 /**
  * Access types which combine a write scope with the restricted read access,

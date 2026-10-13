@@ -6,6 +6,7 @@ import { Filter, PortfolioPosition } from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
 import {
   Scope,
+  canGrantMonetaryValues,
   canGrantRestrictedWriteAccess,
   getAccessLevel,
   getScopesOfAccess,
@@ -135,6 +136,10 @@ export class GfCreateOrUpdateAccessDialogComponent implements OnInit {
     return this.hasExperimentalFeatures && this.hasPermissionToEnableMcp;
   }
 
+  public get canGrantMonetaryValues() {
+    return canGrantMonetaryValues({ type: this.accessType });
+  }
+
   public get canGrantRestrictedWriteAccess() {
     return canGrantRestrictedWriteAccess({ type: this.accessType });
   }
@@ -202,9 +207,9 @@ export class GfCreateOrUpdateAccessDialogComponent implements OnInit {
           granteeUserIdControl?.setValue(null);
         }
 
-        // Narrow the permission to the scopes which the type permits, because
-        // an access which is not granted to a user never exposes the monetary
-        // values and a public access never changes data
+        // Narrow the permission to the scopes which the type permits, because a
+        // type which does not permit a scope keeps it ineffective and a public
+        // access never changes data
         this.accessForm.get('accessLevel')?.setValue(
           getAccessLevel(
             getScopesOfAccess({

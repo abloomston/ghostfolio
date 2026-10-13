@@ -1,4 +1,5 @@
 import { ImportModule } from '@ghostfolio/api/app/import/import.module';
+import { PortfolioModule } from '@ghostfolio/api/app/portfolio/portfolio.module';
 import { SymbolModule } from '@ghostfolio/api/app/symbol/symbol.module';
 import { UserModule } from '@ghostfolio/api/app/user/user.module';
 import { environment } from '@ghostfolio/api/environments/environment';
@@ -25,6 +26,7 @@ import { McpService } from './mcp.service';
     ApiModule,
     ConfigurationModule,
     ImportModule,
+    PortfolioModule,
     PortfolioTableModule,
     SymbolModule,
     UserModule
@@ -39,7 +41,7 @@ import { McpService } from './mcp.service';
 
         return new McpStrategy({
           instructions:
-            'Ghostfolio is a wealth management application. The tools read the portfolio and the watchlist of the user who granted the access, import activities into the portfolio and project the FIRE calculator. They give no quantity and no monetary value of the portfolio (except the unit price of an activity), hence the amounts of a projection of the FIRE calculator come from the client. Only the tools which the permission of the access covers are listed. To import activities, the access needs the permission "Restricted view and manage".',
+            'Ghostfolio is a wealth management application. The tools read the portfolio and the watchlist of the user who granted the access, import activities into the portfolio and project the FIRE calculator. They give no quantity and no monetary value of the portfolio (except the unit price of an activity), unless the access has the scope to read the monetary values, which the tools of the FIRE calculator use to give the actual amounts. Only the tools which the permission of the access covers are listed. To import activities, the access needs the permission "Restricted view and manage" or "View and manage".',
           name: 'ghostfolio',
           resolveUser: getMcpUserOfBearerToken,
           title: 'Ghostfolio',

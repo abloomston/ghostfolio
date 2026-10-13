@@ -165,6 +165,31 @@ describe('GhostfolioMcpController', () => {
     ]);
   });
 
+  // The tools of the FIRE calculator give the actual amounts only to an access
+  // which reads the monetary values, hence they are listed either way
+  it('Lists the same tools for an access which reads the monetary values', () => {
+    expect(
+      getNamesOfListedTools({
+        impersonationOfBearerToken: {
+          isActive: true,
+          scopes: getScopesOfAccess({
+            scopes: getScopesOfAccessLevel('CREATE_READ_UPDATE_DELETE'),
+            type: 'MCP'
+          })
+        }
+      })
+    ).toEqual([
+      'calculate-fire-projection',
+      'get-accounts',
+      'get-activities',
+      'get-fire-assumptions',
+      'get-portfolio',
+      'get-watchlist',
+      'import-activities',
+      'search-asset-profiles'
+    ]);
+  });
+
   it('Lists no tool for an inactive access', () => {
     expect(
       getNamesOfListedTools({

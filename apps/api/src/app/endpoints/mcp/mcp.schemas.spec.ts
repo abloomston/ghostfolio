@@ -35,6 +35,15 @@ describe('CALCULATE_FIRE_PROJECTION_PARAMETERS', () => {
     );
   });
 
+  // Without the amounts the tool falls back to the portfolio or to 0
+  it('Accepts the parameters without the amounts', () => {
+    expect(
+      CALCULATE_FIRE_PROJECTION_PARAMETERS.safeParse({
+        monthsToRetire: 120
+      }).success
+    ).toBe(true);
+  });
+
   it('Refuses a negative amount', () => {
     expect(parse({ principalInvestmentAmount: -1 })).toBe(false);
     expect(parse({ paymentPerPeriod: -1 })).toBe(false);
