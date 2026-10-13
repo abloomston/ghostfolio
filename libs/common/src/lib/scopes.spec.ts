@@ -3,6 +3,7 @@ import {
   SCOPES_OF_READ_ACCESS,
   SCOPES_OF_READ_RESTRICTED_ACCESS,
   SCOPES_OF_WRITE_ACCESS,
+  canGrantMonetaryValues,
   getAccessLevel,
   getScopesOfAccess,
   getScopesOfAccessLevel,
@@ -239,10 +240,21 @@ describe('Scopes', () => {
       expect(scopesOfAccess).toContain(scopes.watchlistRead);
     });
 
-    it('Cannot expose the monetary values', () => {
+    it('Allows reading the monetary values with the scope', () => {
       expect(
         getScopesOfAccess({
           scopes: [...SCOPES_OF_READ_ACCESS],
+          type: 'MCP'
+        })
+      ).toContain(scopes.portfolioReadValues);
+    });
+
+    // The tools of the FIRE calculator give the actual amounts only to an
+    // access which reads the monetary values
+    it('Drops the monetary values without the scope', () => {
+      expect(
+        getScopesOfAccess({
+          scopes: [...SCOPES_OF_READ_RESTRICTED_ACCESS, scopes.activityCreate],
           type: 'MCP'
         })
       ).not.toContain(scopes.portfolioReadValues);
@@ -275,6 +287,41 @@ describe('Scopes', () => {
           })
         )
       ).toEqual('CREATE_READ_RESTRICTED_UPDATE_DELETE');
+    });
+
+    it('Keeps the access level which reads the monetary values', () => {
+      expect(
+        getAccessLevel(
+          getScopesOfAccess({
+            scopes: getScopesOfAccessLevel('CREATE_READ_UPDATE_DELETE'),
+            type: 'MCP'
+          })
+        )
+      ).toEqual('CREATE_READ_UPDATE_DELETE');
+    });
+
+    it('Keeps the access level to read the monetary values', () => {
+      expect(
+        getAccessLevel(
+          getScopesOfAccess({
+            scopes: getScopesOfAccessLevel('READ'),
+            type: 'MCP'
+          })
+        )
+      ).toEqual('READ');
+    });
+  });
+
+  describe('Access types which can grant the monetary values', () => {
+    // The dialog offers the access levels which read the monetary values only
+    // to these types
+    it('Gives the model context protocol and the private access', () => {
+      expect(canGrantMonetaryValues({ type: 'MCP' })).toBe(true);
+      expect(canGrantMonetaryValues({ type: 'PRIVATE' })).toBe(true);
+    });
+
+    it('Gives no public access', () => {
+      expect(canGrantMonetaryValues({ type: 'PUBLIC' })).toBe(false);
     });
   });
 

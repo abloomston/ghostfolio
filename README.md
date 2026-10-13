@@ -374,7 +374,7 @@ Grant access of type _Public_ in the _Access_ tab of _My Ghostfolio_.
 
 ## Model Context Protocol (experimental)
 
-The _Model Context Protocol_ (MCP) server lets an AI client read your portfolio and import activities into it.
+The _Model Context Protocol_ (MCP) server lets an AI client read your portfolio, import activities into it and project the FIRE calculator.
 
 ### Prerequisites
 
@@ -382,7 +382,16 @@ The _Model Context Protocol_ (MCP) server lets an AI client read your portfolio 
 - Set `ROOT_URL` to the public URL of your instance if a client calls the endpoint from a browser page. The host name of `ROOT_URL` is the only accepted origin.
 - Grant an access of the type _MCP_ in _My Ghostfolio_ under _Access_ and copy its token
 
-An _MCP_ access has (restricted) read scopes and never reads the monetary values. Grant the _Restricted view and manage_ permission to let the client also import activities.
+An _MCP_ access has read scopes and gets the write scopes to import activities with a permission which manages the portfolio. The permission decides whether the access reads the monetary values:
+
+| Permission                 | Reads the monetary values | Imports activities |
+| -------------------------- | ------------------------- | ------------------ |
+| Restricted view            | No                        | No                 |
+| Restricted view and manage | No                        | Yes                |
+| View                       | Yes                       | No                 |
+| View and manage            | Yes                       | Yes                |
+
+The tools of the FIRE calculator give the projected amount and the retirement income of an assumption analysis. With an access which reads the monetary values they use your actual FIRE wealth (the value of the portfolio without the emergency fund), your savings rate and your target amount. Without them they project the amounts which the client gives, so that the AI session asks you for them.
 
 ### Connect a client
 

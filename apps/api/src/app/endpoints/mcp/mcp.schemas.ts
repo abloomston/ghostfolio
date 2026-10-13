@@ -1,8 +1,10 @@
 import { DATE_RANGE_PATTERN } from '@ghostfolio/api/dtos/date-range-filter.dto';
 import {
   DATE_RANGES,
+  FIRE_MAX_PROJECTION_YEARS,
   MCP_MAX_ACCOUNTS,
   MCP_MAX_ACTIVITIES,
+  MCP_MAX_ONE_TIME_SAVINGS,
   SEARCH_QUERY_MAXIMUM_LENGTH,
   SEARCH_QUERY_MINIMUM_LENGTH
 } from '@ghostfolio/common/config';
@@ -19,6 +21,90 @@ const HOLDING_PARAMETER = z.object({
     .enum(DataSource)
     .describe('The data source of the asset profile'),
   symbol: z.string().describe('The symbol of the asset profile')
+});
+
+export const CALCULATE_FIRE_PROJECTION_PARAMETERS = z.object({
+  expectedInflationRateInPercentage: z
+    .number()
+    .min(-100)
+    .max(100)
+    .optional()
+    .describe(
+      'The expected annual inflation in percentage, for example 2.5 for 2.5%, which discounts the projection to today’s dollars. Defaults to the inflation rate the user has saved.'
+    ),
+  expectedReturnInPercentage: z
+    .number()
+    .min(-100)
+    .max(100)
+    .optional()
+    .describe(
+      'The expected annual return in percentage, for example 7 for 7%. Defaults to the expected annual return the user has saved.'
+    ),
+  monthsToRetire: z
+    .number()
+    .min(0)
+    .max(FIRE_MAX_PROJECTION_YEARS * 12)
+    .optional()
+    .describe(
+      `The number of months to project, at most ${
+        FIRE_MAX_PROJECTION_YEARS * 12
+      }. It wins over the target amount and over the retirement date.`
+    ),
+  oneTimeSavings: z
+    .array(
+      z.object({
+        amount: z.number().min(0).describe('The amount of the one-time saving'),
+        date: z
+          .string()
+          .refine(isValidDateAfter1970)
+          .optional()
+          .describe(
+            'The month in which the one-time saving is contributed, as an ISO 8601 date, for example 2027-03-01. The saving counts from that month on and defaults to the current month.'
+          )
+      })
+    )
+    .min(1)
+    .max(MCP_MAX_ONE_TIME_SAVINGS)
+    .optional()
+    .describe(
+      `The one-time savings (lump sums) of the projection, at most ${MCP_MAX_ONE_TIME_SAVINGS}`
+    ),
+  paymentPerPeriod: z
+    .number()
+    .min(0)
+    .optional()
+    .describe(
+      'The savings per month, which are contributed at the end of every month. Defaults to the savings rate the user has saved, and to 0 if the access does not read the monetary values.'
+    ),
+  principalInvestmentAmount: z
+    .number()
+    .min(0)
+    .optional()
+    .describe(
+      'The investment amount today, which is the value of the portfolio without the emergency fund, in the same currency as the savings per month. Defaults to the FIRE wealth of the portfolio if the access reads the monetary values, else to 0.'
+    ),
+  retirementDate: z
+    .string()
+    .refine(isValidDateAfter1970)
+    .optional()
+    .describe(
+      'The date to retire, as an ISO 8601 date, where the first day of the month is used, for example 2036-01-01. Defaults to the retirement date the user has saved and, if that is absent as well, to 10 years from now.'
+    ),
+  safeWithdrawalRateInPercentage: z
+    .number()
+    .min(0)
+    .max(100)
+    .optional()
+    .describe(
+      'The share of the projected amount which is withdrawn per year, in percentage, for example 4 for 4%. It gives the retirement income and defaults to the rate the user has saved.'
+    ),
+  targetAmount: z
+    .number()
+    .min(0)
+    .optional()
+    .describe(
+      'The amount the portfolio should reach, in future dollars. If it is given, the horizon of the projection is the time until the amount is reached. Defaults to the projected total amount the user has saved, unless the number of months or the retirement date is given.'
+    )
 });
 
 export const GET_ACCOUNTS_PARAMETERS = z.object({

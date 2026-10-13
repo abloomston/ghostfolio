@@ -131,8 +131,10 @@ describe('GhostfolioMcpController', () => {
         }
       })
     ).toEqual([
+      'calculate-fire-projection',
       'get-accounts',
       'get-activities',
+      'get-fire-assumptions',
       'get-portfolio',
       'get-watchlist'
     ]);
@@ -152,8 +154,35 @@ describe('GhostfolioMcpController', () => {
         }
       })
     ).toEqual([
+      'calculate-fire-projection',
       'get-accounts',
       'get-activities',
+      'get-fire-assumptions',
+      'get-portfolio',
+      'get-watchlist',
+      'import-activities',
+      'search-asset-profiles'
+    ]);
+  });
+
+  // The tools of the FIRE calculator give the actual amounts only to an access
+  // which reads the monetary values, hence they are listed either way
+  it('Lists the same tools for an access which reads the monetary values', () => {
+    expect(
+      getNamesOfListedTools({
+        impersonationOfBearerToken: {
+          isActive: true,
+          scopes: getScopesOfAccess({
+            scopes: getScopesOfAccessLevel('CREATE_READ_UPDATE_DELETE'),
+            type: 'MCP'
+          })
+        }
+      })
+    ).toEqual([
+      'calculate-fire-projection',
+      'get-accounts',
+      'get-activities',
+      'get-fire-assumptions',
       'get-portfolio',
       'get-watchlist',
       'import-activities',
@@ -170,6 +199,18 @@ describe('GhostfolioMcpController', () => {
         }
       })
     ).toEqual([]);
+  });
+
+  it('Requires the scope to read the portfolio for the tools of the FIRE calculator', () => {
+    expect(
+      getMetadataOfMethod<Scope[]>(
+        REQUIRES_SCOPE_KEY,
+        'calculateFireProjection'
+      )
+    ).toEqual([scopes.portfolioRead]);
+    expect(
+      getMetadataOfMethod<Scope[]>(REQUIRES_SCOPE_KEY, 'getFireAssumptions')
+    ).toEqual([scopes.portfolioRead]);
   });
 
   it('Requires the scope to create an activity for the tool to import activities', () => {

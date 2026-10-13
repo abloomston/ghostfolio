@@ -1,5 +1,6 @@
 import { ImportValidationError } from '@ghostfolio/api/app/import/errors/import-validation.error';
 import { ImportService } from '@ghostfolio/api/app/import/import.service';
+import { PortfolioService } from '@ghostfolio/api/app/portfolio/portfolio.service';
 import { SymbolService } from '@ghostfolio/api/app/symbol/symbol.service';
 import { UserService } from '@ghostfolio/api/app/user/user.service';
 import { ApiService } from '@ghostfolio/api/services/api/api.service';
@@ -9,8 +10,11 @@ import {
   DEFAULT_LANGUAGE_CODE,
   MCP_MAX_ACTIVITIES
 } from '@ghostfolio/common/config';
-import { Activity, Filter } from '@ghostfolio/common/interfaces';
+import { SubscriptionType } from '@ghostfolio/common/enums';
+import { DATE_FORMAT } from '@ghostfolio/common/helper';
+import { Activity, Filter, UserSettings } from '@ghostfolio/common/interfaces';
 import { permissions } from '@ghostfolio/common/permissions';
+import { scopes } from '@ghostfolio/common/scopes';
 import type { UserWithSettings } from '@ghostfolio/common/types';
 
 import { HttpException } from '@nestjs/common';
@@ -20,7 +24,10 @@ import {
   DataSource,
   Type as ActivityType
 } from '@prisma/client';
+import { addMonths, addYears, format, startOfMonth } from 'date-fns';
+import { z } from 'zod';
 
+import { CALCULATE_FIRE_PROJECTION_PARAMETERS } from './mcp.schemas';
 import { McpService } from './mcp.service';
 import { createActivity } from './mcp.test-utils';
 
@@ -34,6 +41,7 @@ describe('McpService', () => {
   let configurationService: ConfigurationService;
   let importService: ImportService;
   let mcpService: McpService;
+  let portfolioService: PortfolioService;
   let portfolioTableService: PortfolioTableService;
   let symbolService: SymbolService;
   let userService: UserService;
@@ -69,6 +77,10 @@ describe('McpService', () => {
       import: jest.fn().mockResolvedValue([])
     } as unknown as ImportService;
 
+    portfolioService = {
+      getDetails: jest.fn().mockResolvedValue({ summary: {} })
+    } as unknown as PortfolioService;
+
     portfolioTableService = {
       getAccountsTable: jest.fn().mockResolvedValue('## Accounts'),
       getActivitiesTable: jest.fn().mockResolvedValue('## Activities'),
@@ -86,6 +98,7 @@ describe('McpService', () => {
       apiService,
       configurationService,
       importService,
+      portfolioService,
       portfolioTableService,
       symbolService,
       userService
@@ -209,6 +222,361 @@ describe('McpService', () => {
       expect(portfolioTableService.getWatchlistTable).toHaveBeenCalledWith({
         userId
       });
+    });
+  });
+
+  describe('getFireAssumptions', () => {
+    const userSettings = {
+      annualInterestRate: 7,
+      baseCurrency: 'USD',
+      cashInterestRate: 1.5,
+      expectedInflationRate: 2.5,
+      projectedTotalAmount: 1000000,
+      retirementDate: '2036-05-01',
+      safeWithdrawalRate: 0.035,
+      savingsRate: 2000
+    } as UserSettings;
+
+    async function getAssumptions(
+      context: Partial<Parameters<McpService['getFireAssumptions']>[0]> = {}
+    ) {
+      const { content } = await mcpService.getFireAssumptions({
+        impersonationScopes: [scopes.portfolioRead],
+        userId,
+        userSettings,
+        ...context
+      });
+
+      return JSON.parse(content[0].text);
+    }
+
+    function setupFireWealth(valueInBaseCurrency: number) {
+      jest.spyOn(portfolioService, 'getDetails').mockResolvedValue({
+        summary: {
+          fireWealth: {
+            today: {
+              valueInBaseCurrency
+            }
+          }
+        }
+      } as unknown as Awaited<ReturnType<PortfolioService['getDetails']>>);
+    }
+
+    const scopesOfValues = [scopes.portfolioRead, scopes.portfolioReadValues];
+
+    it('Gives the rates in percentage and the retirement date of the month', async () => {
+      expect(await getAssumptions()).toEqual({
+        baseCurrency: 'USD',
+        cashInterestRateInPercentage: 1.5,
+        expectedInflationRateInPercentage: 2.5,
+        expectedReturnInPercentage: 7,
+        paymentPerPeriod: null,
+        principalInvestmentAmount: null,
+        retirementDate: '2036-05-01',
+        safeWithdrawalRateInPercentage: 3.5,
+        targetAmount: null
+      });
+    });
+
+    it('Gives null for an assumption which the user has not saved', async () => {
+      expect(
+        await getAssumptions({
+          userSettings: { baseCurrency: 'USD' } as UserSettings
+        })
+      ).toEqual({
+        baseCurrency: 'USD',
+        cashInterestRateInPercentage: null,
+        expectedInflationRateInPercentage: null,
+        expectedReturnInPercentage: null,
+        paymentPerPeriod: null,
+        principalInvestmentAmount: null,
+        retirementDate: null,
+        safeWithdrawalRateInPercentage: null,
+        targetAmount: null
+      });
+    });
+
+    it('Gives the amounts of the portfolio with the scope to read the monetary values', async () => {
+      setupFireWealth(513341.26789);
+
+      expect(
+        await getAssumptions({ impersonationScopes: scopesOfValues })
+      ).toEqual({
+        baseCurrency: 'USD',
+        cashInterestRateInPercentage: 1.5,
+        expectedInflationRateInPercentage: 2.5,
+        expectedReturnInPercentage: 7,
+        paymentPerPeriod: 2000,
+        principalInvestmentAmount: 513341.27,
+        retirementDate: '2036-05-01',
+        safeWithdrawalRateInPercentage: 3.5,
+        targetAmount: 1000000
+      });
+    });
+
+    // The tools of the restricted access project only what the client gives,
+    // hence they must not even look at the portfolio
+    it('Reads no portfolio without the scope to read the monetary values', async () => {
+      await getAssumptions();
+
+      expect(portfolioService.getDetails).not.toHaveBeenCalled();
+    });
+
+    it('Gives no amounts for the restricted view of the user', async () => {
+      setupFireWealth(513341.27);
+
+      const assumptions = await getAssumptions({
+        impersonationScopes: scopesOfValues,
+        userSettings: {
+          ...userSettings,
+          isRestrictedView: true
+        } as UserSettings
+      });
+
+      expect(assumptions.principalInvestmentAmount).toEqual(null);
+      expect(portfolioService.getDetails).not.toHaveBeenCalled();
+    });
+
+    // The page of the FIRE calculator is premium, hence the tools give the
+    // amounts of a basic subscription no more than the page gives them
+    it('Gives no amounts for a basic subscription', async () => {
+      configuration.ENABLE_FEATURE_SUBSCRIPTION = true;
+
+      setupFireWealth(513341.27);
+
+      const assumptions = await getAssumptions({
+        impersonationScopes: scopesOfValues,
+        userSubscription: {
+          type: SubscriptionType.Basic
+        } as UserWithSettings['subscription']
+      });
+
+      expect(assumptions.principalInvestmentAmount).toEqual(null);
+      expect(assumptions.paymentPerPeriod).toEqual(null);
+    });
+
+    it('Gives the amounts for a premium subscription', async () => {
+      configuration.ENABLE_FEATURE_SUBSCRIPTION = true;
+
+      setupFireWealth(513341.27);
+
+      const assumptions = await getAssumptions({
+        impersonationScopes: scopesOfValues,
+        userSubscription: {
+          type: SubscriptionType.Premium
+        } as UserWithSettings['subscription']
+      });
+
+      expect(assumptions.principalInvestmentAmount).toEqual(513341.27);
+    });
+  });
+
+  describe('calculateFireProjection', () => {
+    const userSettings = {
+      annualInterestRate: 7,
+      baseCurrency: 'USD',
+      expectedInflationRate: 2.5,
+      projectedTotalAmount: 1000000,
+      retirementDate: format(addYears(new Date(), 10), DATE_FORMAT),
+      safeWithdrawalRate: 0.04,
+      savingsRate: 2000
+    } as UserSettings;
+
+    const scopesOfValues = [scopes.portfolioRead, scopes.portfolioReadValues];
+
+    async function calculate(
+      parameters: Partial<
+        z.infer<typeof CALCULATE_FIRE_PROJECTION_PARAMETERS>
+      > = {},
+      context: Partial<
+        Parameters<McpService['calculateFireProjection']>[0]
+      > = {}
+    ) {
+      const { content } = await mcpService.calculateFireProjection({
+        impersonationScopes: [scopes.portfolioRead],
+        userId,
+        userSettings,
+        ...context,
+        ...parameters
+      });
+
+      return JSON.parse(content[0].text);
+    }
+
+    function setupFireWealth(valueInBaseCurrency: number) {
+      jest.spyOn(portfolioService, 'getDetails').mockResolvedValue({
+        summary: {
+          fireWealth: {
+            today: {
+              valueInBaseCurrency
+            }
+          }
+        }
+      } as unknown as Awaited<ReturnType<PortfolioService['getDetails']>>);
+    }
+
+    it('Falls back to the assumptions the user has saved', async () => {
+      const projection = await calculate({
+        paymentPerPeriod: 1000,
+        principalInvestmentAmount: 100000
+      });
+
+      expect(projection.baseCurrency).toEqual('USD');
+      expect(projection.assumptions).toEqual({
+        expectedInflationRateInPercentage: 2.5,
+        expectedReturnInPercentage: 7,
+        oneTimeSavings: [],
+        paymentPerPeriod: 1000,
+        principalInvestmentAmount: 100000,
+        safeWithdrawalRateInPercentage: 4
+      });
+      expect(projection.horizon.mode).toEqual('retirement-date');
+      expect(projection.horizon.retirementDate).toEqual(
+        format(startOfMonth(addYears(new Date(), 10)), DATE_FORMAT)
+      );
+    });
+
+    it('Uses the amounts of the portfolio with the scope to read the monetary values', async () => {
+      setupFireWealth(500000);
+
+      const projection = await calculate(
+        {},
+        {
+          impersonationScopes: scopesOfValues
+        }
+      );
+
+      expect(projection.assumptions.principalInvestmentAmount).toEqual(500000);
+      expect(projection.assumptions.paymentPerPeriod).toEqual(2000);
+      expect(projection.horizon.mode).toEqual('target-amount');
+      expect(projection.horizon.targetAmount).toEqual(1000000);
+    });
+
+    it('Prefers the parameters over the amounts of the portfolio', async () => {
+      setupFireWealth(500000);
+
+      const projection = await calculate(
+        {
+          monthsToRetire: 12,
+          paymentPerPeriod: 500,
+          principalInvestmentAmount: 1000
+        },
+        { impersonationScopes: scopesOfValues }
+      );
+
+      expect(projection.assumptions.principalInvestmentAmount).toEqual(1000);
+      expect(projection.assumptions.paymentPerPeriod).toEqual(500);
+      expect(projection.atRetirement.amounts.deposits).toEqual(1000);
+    });
+
+    it('Gives no amount for a restricted access', async () => {
+      const projection = await calculate({});
+
+      expect(projection.assumptions.principalInvestmentAmount).toEqual(0);
+      expect(projection.assumptions.paymentPerPeriod).toEqual(0);
+      expect(projection.atRetirement.amounts.totalAmount).toEqual(0);
+      expect(portfolioService.getDetails).not.toHaveBeenCalled();
+    });
+
+    it('Gives the horizon the caller asks for instead of the target amount of the user', async () => {
+      setupFireWealth(500000);
+
+      const projection = await calculate(
+        {
+          retirementDate: format(addYears(new Date(), 5), DATE_FORMAT)
+        },
+        { impersonationScopes: scopesOfValues }
+      );
+
+      expect(projection.horizon.mode).toEqual('retirement-date');
+      expect(projection.horizon.targetAmount).toEqual(undefined);
+    });
+
+    it('Prefers the parameters over the assumptions the user has saved', async () => {
+      const projection = await calculate({
+        expectedInflationRateInPercentage: 0,
+        expectedReturnInPercentage: 0,
+        monthsToRetire: 12,
+        paymentPerPeriod: 1000,
+        principalInvestmentAmount: 100000,
+        safeWithdrawalRateInPercentage: 3
+      });
+
+      expect(projection.horizon.mode).toEqual('months');
+      expect(projection.atRetirement.amounts).toEqual({
+        contributions: 12000,
+        deposits: 100000,
+        interest: 0,
+        oneTimeSavings: 0,
+        totalAmount: 112000
+      });
+      expect(projection.atRetirement.income.perYear).toEqual(3360);
+      expect(projection.atRetirement.income.perMonth).toEqual(280);
+      expect(projection.incomeToday).toEqual({
+        perMonth: 250,
+        perYear: 3000
+      });
+    });
+
+    it('Gives the income of the projected amount and the composition of it', async () => {
+      const projection = await calculate({
+        expectedInflationRateInPercentage: 0,
+        expectedReturnInPercentage: 6,
+        monthsToRetire: 240,
+        paymentPerPeriod: 1000,
+        principalInvestmentAmount: 100000,
+        safeWithdrawalRateInPercentage: 4
+      });
+
+      const { amounts, income } = projection.atRetirement;
+
+      expect(
+        amounts.deposits +
+          amounts.contributions +
+          amounts.oneTimeSavings +
+          amounts.interest
+      ).toBeCloseTo(amounts.totalAmount, 1);
+      expect(income.perYear).toBeCloseTo(amounts.totalAmount * 0.04, 1);
+      expect(income.perMonth).toBeCloseTo(income.perYear / 12, 2);
+    });
+
+    it('Maps the month of a one-time saving', async () => {
+      const projection = await calculate({
+        expectedReturnInPercentage: 0,
+        monthsToRetire: 6,
+        oneTimeSavings: [
+          {
+            amount: 10000,
+            date: format(addMonths(new Date(), 6), DATE_FORMAT)
+          }
+        ],
+        paymentPerPeriod: 0,
+        principalInvestmentAmount: 0
+      });
+
+      expect(projection.assumptions.oneTimeSavings).toEqual([
+        { amount: 10000, monthsFromNow: 6 }
+      ]);
+      expect(projection.atRetirement.amounts.totalAmount).toEqual(10000);
+    });
+
+    it('Reports an unreachable target amount', async () => {
+      const projection = await calculate({
+        expectedReturnInPercentage: 0,
+        paymentPerPeriod: 0,
+        principalInvestmentAmount: 1000,
+        targetAmount: 1000000
+      });
+
+      expect(projection.horizon).toEqual({
+        isReachable: false,
+        mode: 'target-amount',
+        monthsToRetire: null,
+        retirementDate: null,
+        targetAmount: 1000000,
+        yearsToRetire: null
+      });
+      expect(projection.atRetirement.amounts).toBeNull();
     });
   });
 

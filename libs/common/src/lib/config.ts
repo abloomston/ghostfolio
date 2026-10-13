@@ -265,6 +265,14 @@ export const NON_INVESTMENT_ACTIVITY_TYPES = Object.values(Type).filter(
   }
 );
 
+// Horizon of the FIRE calculator when neither a retirement date nor a target
+// amount is given
+export const FIRE_DEFAULT_PROJECTION_YEARS = 10;
+
+// Number of years a projection of the FIRE calculator covers, which bounds the
+// size of its result
+export const FIRE_MAX_PROJECTION_YEARS = 100;
+
 export const PORTFOLIO_SNAPSHOT_PROCESS_JOB_NAME = 'PORTFOLIO';
 export const PORTFOLIO_SNAPSHOT_PROCESS_JOB_OPTIONS: JobOptions = {
   removeOnComplete: true
@@ -283,6 +291,7 @@ export const MAX_TOP_HOLDINGS = 50;
 export const MCP_ENDPOINT = '/mcp';
 export const MCP_MAX_ACCOUNTS = 50;
 export const MCP_MAX_ACTIVITIES = 100;
+export const MCP_MAX_ONE_TIME_SAVINGS = 25;
 export const MCP_REALM = 'Ghostfolio';
 
 export const NUMERICAL_PRECISION_THRESHOLD_3_FIGURES = 100;
